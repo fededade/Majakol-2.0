@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target } from 'lucide-react';
 
 // --- API CONFIGURATION ---
-const API_KEY = "AIzaSyCuuDDeUyWbdd50T0kw8hXWKa94smPMEEw";
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
 // --- IMAGE MAPPING ---
 const IMAGE_CATEGORIES = {
