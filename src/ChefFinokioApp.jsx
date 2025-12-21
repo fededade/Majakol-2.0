@@ -2,10 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target } from 'lucide-react';
 
 // --- API CONFIGURATION ---
-// NOTA IMPORTANTE:
-// Ho riattivato questa riga per far funzionare l'app sul tuo PC e su Vercel.
-// Assicurati di avere il file .env con VITE_GOOGLE_API_KEY=la_tua_chiave
+// NOTA IMPORTANTE PER DAVIDE:
+// L'istruzione qui sotto serve per leggere la chiave dal tuo file .env sul PC o da Vercel.
+// Qui nell'anteprima è commentata per evitare errori tecnici, ma TU DEVI SCOMMENTARLA nel tuo file locale.
+
+// Togli i due slash (//) all'inizio della riga successiva quando usi il codice sul tuo PC:
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY; 
+const API_KEY = ""; // Lascia questa vuota per l'anteprima qui nel browser
 
 // --- IMAGE MAPPING ---
 // Immagini di fallback sicure se quelle specifiche falliscono
@@ -429,7 +432,7 @@ export default function ChefFinokioApp() {
                 </div>
                 <h2 className="text-3xl font-bold text-gray-800 font-serif">{isLunch ? "Menu Pranzo" : "Menu Cena"}</h2>
             </div>
-            <button onClick={() => generateRecipes(null)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-green-200 flex items-center gap-2 font-semibold transition transform hover:scale-105">
+            <button onClick={handleGenerateDaily} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-green-200 flex items-center gap-2 font-semibold transition transform hover:scale-105">
                 <Sparkles size={20} /> Chiedi nuove idee allo Chef AI
             </button>
         </div>
