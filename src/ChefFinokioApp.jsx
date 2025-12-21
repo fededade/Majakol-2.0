@@ -2,12 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target } from 'lucide-react';
 
 // --- API CONFIGURATION ---
-// NOTA PER DAVIDE:
-// Quando sei sul tuo computer o su Vercel, SCOMMENTA la riga qui sotto:
-// const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY; 
-
-// Per l'anteprima qui usiamo una stringa vuota:
-const API_KEY = ""; 
+// NOTA IMPORTANTE:
+// Ho riattivato questa riga per far funzionare l'app sul tuo PC e su Vercel.
+// Assicurati di avere il file .env con VITE_GOOGLE_API_KEY=la_tua_chiave
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY; 
 
 // --- IMAGE MAPPING ---
 // Immagini di fallback sicure se quelle specifiche falliscono
@@ -418,117 +416,6 @@ export default function ChefFinokioApp() {
     </div>
   );
 
-  const renderModeSelection = () => (
-    <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-4 space-y-10">
-      <div className="text-center max-w-lg mx-auto">
-          <button onClick={() => setView('welcome')} className="mb-6 flex items-center justify-center mx-auto text-gray-400 hover:text-green-600 transition text-sm"><ArrowLeft size={16} className="mr-1" /> Indietro</button>
-          <h2 className="text-3xl font-bold text-gray-800 font-serif mb-3">Come vuoi procedere?</h2>
-          <p className="text-gray-500">Scegli se affidarti totalmente alla creatività di Majakol o dare qualche indicazione.</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-          {/* Opzione 1: Automatica */}
-          <button 
-            onClick={() => generateRecipes(null)}
-            className="group relative bg-white border-2 border-purple-100 hover:border-purple-400 hover:bg-purple-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
-          >
-              <div className="absolute top-6 right-6 bg-purple-100 p-3 rounded-full text-purple-600 group-hover:scale-110 transition"><Brain size={32} /></div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Lascia fare a Majakol</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">
-                  L'IA analizzerà milioni di combinazioni per proporti 3 ricette equilibrate e sorprendenti. Ideale se non hai idee.
-              </p>
-              <div className="mt-6 flex items-center text-purple-600 font-bold text-sm">
-                  <Sparkles size={16} className="mr-2" /> Generazione Automatica
-              </div>
-          </button>
-
-          {/* Opzione 2: Wizard */}
-          <button 
-            onClick={() => { setWizardStep(0); setView('wizard'); }}
-            className="group relative bg-white border-2 border-green-100 hover:border-green-400 hover:bg-green-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
-          >
-              <div className="absolute top-6 right-6 bg-green-100 p-3 rounded-full text-green-600 group-hover:scale-110 transition"><Lightbulb size={32} /></div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Ho qualche idea...</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">
-                  Hai del pollo in frigo? O voglia di qualcosa di leggero? Guida lo Chef verso la ricetta perfetta per te.
-              </p>
-              <div className="mt-6 flex items-center text-green-600 font-bold text-sm">
-                  <Target size={16} className="mr-2" /> Configurazione Guidata
-              </div>
-          </button>
-      </div>
-    </div>
-  );
-
-  const renderWizard = () => {
-      const isStepBase = wizardStep === 0;
-      
-      const baseOptions = [
-          { label: "Pesce", icon: <Fish size={24}/>, value: "Pesce" },
-          { label: "Carne", icon: "🍖", value: "Carne" },
-          { label: "Pollo", icon: "🍗", value: "Pollo" },
-          { label: "Pasta/Riso", icon: "🍝", value: "Pasta o Riso" },
-          { label: "Verdure", icon: <Leaf size={24}/>, value: "Verdure e Legumi" },
-          { label: "Uova/Formaggi", icon: "🧀", value: "Uova o Formaggi" }
-      ];
-
-      const styleOptions = [
-          { label: "Leggero & Fit", desc: "Poche calorie, equilibrato", value: "Leggero, sano e ipocalorico" },
-          { label: "Saporito & Ricco", desc: "Comfort food avvolgente", value: "Saporito, ricco e gustoso" },
-          { label: "Veloce & Easy", desc: "Pronto in 15 minuti", value: "Molto veloce e semplice da preparare" },
-          { label: "Gourmet", desc: "Per stupire gli ospiti", value: "Raffinato, stile ristorante" }
-      ];
-
-      return (
-        <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-4 max-w-2xl mx-auto">
-            <button onClick={() => isStepBase ? setView('mode_selection') : setWizardStep(0)} className="self-start mb-8 flex items-center text-gray-400 hover:text-green-600 transition text-sm"><ArrowLeft size={16} className="mr-1" /> Indietro</button>
-            
-            <div className="w-full mb-8">
-                <div className="flex justify-between mb-2">
-                    <span className={`text-sm font-bold ${isStepBase ? 'text-green-600' : 'text-green-800'}`}>Step 1: Ingrediente</span>
-                    <span className={`text-sm font-bold ${!isStepBase ? 'text-green-600' : 'text-gray-300'}`}>Step 2: Stile</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full bg-green-500 transition-all duration-500 ${isStepBase ? 'w-1/2' : 'w-full'}`}></div>
-                </div>
-            </div>
-
-            <h2 className="text-3xl font-bold text-gray-800 font-serif mb-8 text-center">
-                {isStepBase ? "Qual è l'ingrediente protagonista?" : "Che carattere diamo al piatto?"}
-            </h2>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
-                {isStepBase ? (
-                    baseOptions.map((opt) => (
-                        <button 
-                            key={opt.label}
-                            onClick={() => handleWizardOption('base', opt.value)}
-                            className="flex flex-col items-center justify-center p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-green-400 hover:bg-green-50 transition-all hover:-translate-y-1 hover:shadow-md gap-3"
-                        >
-                            <div className="text-3xl text-gray-700">{opt.icon}</div>
-                            <span className="font-bold text-gray-700">{opt.label}</span>
-                        </button>
-                    ))
-                ) : (
-                    styleOptions.map((opt) => (
-                        <button 
-                            key={opt.label}
-                            onClick={() => handleWizardOption('style', opt.value)}
-                            className="col-span-1 md:col-span-3 flex items-center p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-green-400 hover:bg-green-50 transition-all hover:-translate-y-1 hover:shadow-md text-left gap-4"
-                        >
-                            <div className="bg-green-100 p-3 rounded-full text-green-600"><CheckCircle size={24} /></div>
-                            <div>
-                                <div className="font-bold text-gray-800 text-lg">{opt.label}</div>
-                                <div className="text-gray-500 text-sm">{opt.desc}</div>
-                            </div>
-                        </button>
-                    ))
-                )}
-            </div>
-        </div>
-      );
-  };
-
   const renderHome = () => {
     const currentMeals = dailyMeals[mealType] || [];
     const isLunch = mealType === 'pranzo';
@@ -543,7 +430,7 @@ export default function ChefFinokioApp() {
                 <h2 className="text-3xl font-bold text-gray-800 font-serif">{isLunch ? "Menu Pranzo" : "Menu Cena"}</h2>
             </div>
             <button onClick={() => generateRecipes(null)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-green-200 flex items-center gap-2 font-semibold transition transform hover:scale-105">
-                <Sparkles size={20} /> Idee Random
+                <Sparkles size={20} /> Chiedi nuove idee allo Chef AI
             </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4 pb-12">
