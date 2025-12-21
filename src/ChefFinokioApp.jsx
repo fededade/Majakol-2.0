@@ -1,19 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target } from 'lucide-react';
+import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target, ImageIcon } from 'lucide-react';
 
 // --- API CONFIGURATION ---
-// NOTA IMPORTANTE PER DAVIDE:
-// Per evitare errori nell'anteprima qui, ho commentato la riga che legge la chiave.
-// QUANDO SEI SUL TUO COMPUTER O SU VERCEL:
-// 1. Togli i due slash (//) dalla riga 'const API_KEY = import.meta.env...'
-// 2. Aggiungi due slash (//) davanti alla riga 'const API_KEY = "";'
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
-const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY; 
-//const API_KEY = "";
-// --- IMAGE MAPPING ---
-// Immagini di fallback sicure se quelle specifiche falliscono
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800";
-
+// --- IMAGE MAPPING (fallback) ---
 const IMAGE_CATEGORIES = {
   fish: [
     "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
@@ -44,16 +35,8 @@ const IMAGE_CATEGORIES = {
 
 const getRandomImage = (category) => {
   const cat = category?.toLowerCase();
-  // Mapping approssimativo per categorie non standard restituite dall'IA
-  let targetList = IMAGE_CATEGORIES.veggie;
-  
-  if (cat?.includes('pesce') || cat?.includes('fish') || cat?.includes('mare')) targetList = IMAGE_CATEGORIES.fish;
-  else if (cat?.includes('carne') || cat?.includes('meat') || cat?.includes('pollo') || cat?.includes('chicken')) targetList = IMAGE_CATEGORIES.meat;
-  else if (cat?.includes('pasta') || cat?.includes('riso') || cat?.includes('primo')) targetList = IMAGE_CATEGORIES.pasta;
-  else if (cat?.includes('insalata') || cat?.includes('salad')) targetList = IMAGE_CATEGORIES.salad;
-  else if (IMAGE_CATEGORIES[cat]) targetList = IMAGE_CATEGORIES[cat];
-
-  return targetList[Math.floor(Math.random() * targetList.length)];
+  const list = IMAGE_CATEGORIES[cat] || IMAGE_CATEGORIES.veggie; 
+  return list[Math.floor(Math.random() * list.length)];
 };
 
 // --- DATA ---
@@ -170,8 +153,6 @@ const AppLogo = ({ size = "default" }) => {
     const isLarge = size === "large";
     const containerClasses = isLarge ? "w-32 h-32 border-4 shadow-xl" : "w-16 h-16 border-2 shadow-md";
     const iconSize = isLarge ? 64 : 32;
-    
-    // Stato per gestire errore caricamento immagine
     const [imageError, setImageError] = useState(false);
     const logoSrc = "/logo.png";
 
@@ -195,20 +176,26 @@ const AppLogo = ({ size = "default" }) => {
     );
 };
 
-const LoadingOverlay = ({ text }) => (
+const LoadingOverlay = ({ text, subText, showImageIcon }) => (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
         <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-sm w-full text-center">
             <div className="relative">
                 <div className="w-20 h-20 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <div className="transform scale-75">
-                         <AppLogo />
-                    </div>
+                    {showImageIcon ? (
+                        <div className="bg-purple-100 p-2 rounded-full">
+                            <ImageIcon size={24} className="text-purple-600" />
+                        </div>
+                    ) : (
+                        <div className="transform scale-75">
+                             <AppLogo />
+                        </div>
+                    )}
                 </div>
             </div>
             <div>
-                <h3 className="text-xl font-bold text-gray-800">Chef Finokio sta pensando...</h3>
-                <p className="text-gray-500 text-sm mt-2">{text}</p>
+                <h3 className="text-xl font-bold text-gray-800">{text}</h3>
+                {subText && <p className="text-gray-500 text-sm mt-2">{subText}</p>}
             </div>
         </div>
     </div>
@@ -224,7 +211,10 @@ export default function ChefFinokioApp() {
   const [currentDate, setCurrentDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
+  const [loadingSubText, setLoadingSubText] = useState('');
+  const [showImageIcon, setShowImageIcon] = useState(false);
   
+  // Wizard State
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardPreferences, setWizardPreferences] = useState({ base: '', style: '' });
 
@@ -234,12 +224,14 @@ export default function ChefFinokioApp() {
     setCurrentDate(today.toLocaleDateString('it-IT', options));
   }, []);
 
+  // --- API CALLS ---
+  
   const callGemini = async (prompt) => {
     if (!API_KEY) return null;
     
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -252,41 +244,97 @@ export default function ChefFinokioApp() {
         const data = await response.json();
         const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!jsonText) throw new Error("No data");
-        // Pulizia extra nel caso l'IA includa ```json nel testo
-        const cleanJson = jsonText.replace(/```json/g, '').replace(/```/g, '');
-        return JSON.parse(cleanJson);
+        return JSON.parse(jsonText);
     } catch (error) {
         console.error("Gemini Error:", error);
         return null;
     }
   };
 
+  // Genera immagine con Imagen (Nano Banana)
+  const generateImageWithImagen = async (dishTitle, dishDescription) => {
+    if (!API_KEY) return null;
+    
+    const imagePrompt = `Professional food photography of "${dishTitle}". ${dishDescription}. Beautifully plated on a ceramic dish, soft natural lighting, shallow depth of field, top-down angle, rustic wooden table background, garnished elegantly, restaurant quality presentation, 4K, photorealistic.`;
+    
+    try {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    instances: [{ prompt: imagePrompt }],
+                    parameters: {
+                        sampleCount: 1,
+                        aspectRatio: "4:3",
+                        safetyFilterLevel: "block_few",
+                        personGeneration: "dont_allow"
+                    }
+                })
+            }
+        );
+        
+        const data = await response.json();
+        
+        // Imagen restituisce l'immagine in base64
+        if (data.predictions && data.predictions[0]?.bytesBase64Encoded) {
+            const base64Image = data.predictions[0].bytesBase64Encoded;
+            return `data:image/png;base64,${base64Image}`;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error("Imagen Error:", error);
+        return null;
+    }
+  };
+
+  // Genera immagini per tutte le ricette
+  const generateImagesForMeals = async (meals) => {
+    const mealsWithImages = [];
+    
+    for (let i = 0; i < meals.length; i++) {
+        const meal = meals[i];
+        setLoadingSubText(`Immagine ${i + 1} di ${meals.length}: ${meal.title}`);
+        
+        const generatedImage = await generateImageWithImagen(meal.title, meal.description);
+        
+        mealsWithImages.push({
+            ...meal,
+            image: generatedImage || getRandomImage(meal.category) // Fallback se l'immagine non viene generata
+        });
+    }
+    
+    return mealsWithImages;
+  };
+
   const handleSetMealType = (type) => {
       setMealType(type);
-      setView('mode_selection'); 
-  };
-  
-  // Validazione robusta dei dati ricevuti dall'IA
-  const validateMeal = (meal) => {
-      if (!meal) return false;
-      // Imposta valori di default se mancano
-      if (!meal.steps) meal.steps = ["Istruzioni non disponibili."];
-      if (!meal.ingredients) meal.ingredients = [];
-      if (!meal.nutrition) meal.nutrition = { protein: "?", carbs: "?", fiber: "?", calories: "?" };
-      if (!meal.tags) meal.tags = ["Nuovo"];
-      if (!meal.title) meal.title = "Ricetta senza titolo";
-      return true;
+      setView('mode_selection');
   };
 
   const generateRecipes = async (preferences = null) => {
     setIsLoading(true);
-    setLoadingText(preferences ? "Chef Finokio sta creando il menu su misura..." : "Chef Finokio sta inventando qualcosa di speciale...");
+    setShowImageIcon(false);
+    setLoadingText("Majakol sta creando i piatti...");
+    setLoadingSubText("Analisi ingredienti e combinazioni in corso");
     
     if(!API_KEY) {
         setTimeout(() => {
             setIsLoading(false);
-            alert("Nessuna API Key trovata. Ti mostro le proposte classiche.");
-            setView('home');
+            setLoadingSubText('');
+            if (!preferences) {
+                if(dailyMeals[mealType]?.length > 0) {
+                     setView('home');
+                } else {
+                     alert("Per usare l'IA reale, inserisci la tua API KEY nel codice.");
+                     setView('home'); 
+                }
+            } else {
+                alert("Per generare ricette personalizzate serve l'API KEY. Ti mostrerò il menu standard.");
+                setView('home');
+            }
         }, 1500);
         return;
     }
@@ -298,26 +346,55 @@ export default function ChefFinokioApp() {
         promptContext = `Scegli tu gli ingredienti in base alla creatività e stagionalità.`;
     }
 
-    const prompt = `Genera 3 ricette per ${mealType}. ${promptContext} IMPORTANTE: Rispondi SOLO con un ARRAY JSON valido. Struttura: [{id, title, subtitle, description, category, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}]`;
+    const prompt = `Sei uno chef esperto italiano. Genera esattamente 3 ricette per ${mealType}. ${promptContext} 
+    
+    IMPORTANTE: Rispondi SOLO con un array JSON valido, senza testo aggiuntivo.
+    
+    Struttura richiesta per ogni ricetta:
+    {
+      "id": "stringa univoca",
+      "title": "Nome del piatto",
+      "subtitle": "Breve slogan (3-4 parole)",
+      "description": "Descrizione appetitosa del piatto (2 frasi)",
+      "category": "fish|meat|pasta|veggie|salad",
+      "tags": ["tag1", "tag2", "tag3"],
+      "nutrition": {
+        "protein": "XXg",
+        "carbs": "XXg", 
+        "fiber": "Xg",
+        "calories": "XXX kcal"
+      },
+      "time": "XX min",
+      "servings": 2,
+      "steps": ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"],
+      "ingredients": [
+        {"name": "Ingrediente", "qty": "quantità", "cost": numero_decimale}
+      ]
+    }`;
     
     const newMeals = await callGemini(prompt);
     
     if (newMeals && Array.isArray(newMeals)) {
-        const mealsWithImages = newMeals.map(meal => ({
-            ...meal,
-            image: getRandomImage(meal.category)
-        }));
+        // FASE 2: Generazione immagini
+        setShowImageIcon(true);
+        setLoadingText("Majakol sta creando le immagini dei piatti...");
+        setLoadingSubText("Preparazione visualizzazione gourmet");
+        
+        const mealsWithImages = await generateImagesForMeals(newMeals);
+        
         setDailyMeals(prev => ({ ...prev, [mealType]: mealsWithImages }));
         setView('home');
     } else {
-        alert("Ops! L'IA è momentaneamente irraggiungibile o ha risposto male. Ti mostro il menu classico.");
-        setView('home');
+        // Fallback: usa immagini stock se la generazione fallisce
+        alert("Errore nella generazione. Riprova!");
     }
     
     setIsLoading(false);
+    setLoadingSubText('');
+    setShowImageIcon(false);
   };
 
-  const handleGenerateDaily = () => generateRecipes(null); 
+  const handleGenerateDaily = () => generateRecipes(null);
 
   const handleWizardOption = (key, value) => {
       setWizardPreferences(prev => ({ ...prev, [key]: value }));
@@ -330,46 +407,66 @@ export default function ChefFinokioApp() {
   };
 
   const handleGenerateVariant = async () => {
-    if(!API_KEY) { alert("Configura l'API Key su Vercel per usare questa funzione."); return; }
+    if(!API_KEY) { alert("Per usare questa funzione, inserisci la tua API Key Gemini nel codice."); return; }
     setIsLoading(true);
-    setLoadingText("Sto elaborando una variante...");
+    setShowImageIcon(false);
+    setLoadingText("Majakol sta creando la variante...");
+    setLoadingSubText("Rielaborazione ricetta in corso");
     
-    // Prompt più rigido per evitare errori
-    const prompt = `Crea una variante della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci UN SINGOLO OGGETTO JSON (no array) con struttura esatta: {id, title, subtitle, description, category, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}`;
-    
+    const prompt = `Crea una variante della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci JSON con stessa struttura.`;
     const variant = await callGemini(prompt);
     
-    if (validateMeal(variant)) {
-        variant.image = selectedMeal.image;
+    if (variant) {
+        // Genera immagine per la variante
+        setShowImageIcon(true);
+        setLoadingText("Majakol sta creando l'immagine...");
+        setLoadingSubText(variant.title || "Nuova variante");
+        
+        const generatedImage = await generateImageWithImagen(
+            variant.title || selectedMeal.title, 
+            variant.description || selectedMeal.description
+        );
+        
+        variant.image = generatedImage || selectedMeal.image;
         variant.title = "Variante: " + (variant.title || selectedMeal.title);
         variant.id = selectedMeal.id + "_var";
         handleSelectMeal(variant);
-    } else {
-        alert("Non sono riuscito a creare una variante valida. Riprova.");
     }
     setIsLoading(false);
+    setShowImageIcon(false);
+    setLoadingSubText('');
   };
 
   const handleRemixIngredients = async () => {
-    if(!API_KEY) { alert("Configura l'API Key su Vercel per usare questa funzione."); return; }
+    if(!API_KEY) { alert("Per usare questa funzione, inserisci la tua API Key Gemini nel codice."); return; }
     setIsLoading(true);
-    setLoadingText("Sto remixando gli ingredienti...");
+    setShowImageIcon(false);
+    setLoadingText("Majakol sta remixando gli ingredienti...");
+    setLoadingSubText("Combinazioni creative in elaborazione");
     
     const mainIngredients = selectedMeal.ingredients.map(i => i.name).slice(0, 3).join(", ");
-    // Prompt più rigido per evitare pagina bianca
-    const prompt = `Crea una nuova ricetta usando questi ingredienti: ${mainIngredients}. Restituisci UN SINGOLO OGGETTO JSON (no array) con struttura esatta: {id, title, subtitle, description, category, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}`;
-    
+    const prompt = `Crea una nuova ricetta usando questi ingredienti: ${mainIngredients}. Restituisci JSON con struttura completa incluso category (fish|meat|pasta|veggie|salad).`;
     const remix = await callGemini(prompt);
     
-    if (validateMeal(remix)) {
-        remix.image = getRandomImage(remix.category);
+    if (remix) {
+        // Genera immagine per il remix
+        setShowImageIcon(true);
+        setLoadingText("Majakol sta creando l'immagine...");
+        setLoadingSubText(remix.title || "Remix creativo");
+        
+        const generatedImage = await generateImageWithImagen(
+            remix.title || "Piatto Remix", 
+            remix.description || "Un piatto creativo con ingredienti remixati"
+        );
+        
+        remix.image = generatedImage || getRandomImage(remix.category);
         remix.title = "Remix: " + (remix.title || "Nuova Ricetta");
         remix.id = "remix_" + Date.now();
         handleSelectMeal(remix);
-    } else {
-         alert("Non sono riuscito a creare il remix. Riprova.");
     }
     setIsLoading(false);
+    setShowImageIcon(false);
+    setLoadingSubText('');
   };
 
   const handleSelectMeal = (meal) => { setSelectedMeal(meal); setCheckedIngredients({}); setView('detail'); };
@@ -419,6 +516,117 @@ export default function ChefFinokioApp() {
     </div>
   );
 
+  const renderModeSelection = () => (
+    <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-4 space-y-10">
+      <div className="text-center max-w-lg mx-auto">
+          <button onClick={() => setView('welcome')} className="mb-6 flex items-center justify-center mx-auto text-gray-400 hover:text-green-600 transition text-sm"><ArrowLeft size={16} className="mr-1" /> Indietro</button>
+          <h2 className="text-3xl font-bold text-gray-800 font-serif mb-3">Come vuoi procedere?</h2>
+          <p className="text-gray-500">Scegli se affidarti totalmente alla creatività di Majakol o dare qualche indicazione.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+          {/* Opzione 1: Automatica */}
+          <button 
+            onClick={() => generateRecipes(null)}
+            className="group relative bg-white border-2 border-purple-100 hover:border-purple-400 hover:bg-purple-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
+          >
+              <div className="absolute top-6 right-6 bg-purple-100 p-3 rounded-full text-purple-600 group-hover:scale-110 transition"><Brain size={32} /></div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Lascia fare a Majakol</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                  L'IA analizzerà milioni di combinazioni per proporti 3 ricette equilibrate e sorprendenti. Ideale se non hai idee.
+              </p>
+              <div className="mt-6 flex items-center text-purple-600 font-bold text-sm">
+                  <Sparkles size={16} className="mr-2" /> Generazione Automatica
+              </div>
+          </button>
+
+          {/* Opzione 2: Wizard */}
+          <button 
+            onClick={() => { setWizardStep(0); setView('wizard'); }}
+            className="group relative bg-white border-2 border-green-100 hover:border-green-400 hover:bg-green-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
+          >
+              <div className="absolute top-6 right-6 bg-green-100 p-3 rounded-full text-green-600 group-hover:scale-110 transition"><Lightbulb size={32} /></div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Ho qualcosa in casa...</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                  Hai del pollo in frigo? O voglia di qualcosa di leggero? Guida lo Chef verso la ricetta perfetta per te.
+              </p>
+              <div className="mt-6 flex items-center text-green-600 font-bold text-sm">
+                  <Target size={16} className="mr-2" /> Configurazione Guidata
+              </div>
+          </button>
+      </div>
+    </div>
+  );
+
+  const renderWizard = () => {
+      const isStepBase = wizardStep === 0;
+      
+      const baseOptions = [
+          { label: "Pesce", icon: <Fish size={24}/>, value: "Pesce" },
+          { label: "Carne", icon: "🍖", value: "Carne" },
+          { label: "Pollo", icon: "🍗", value: "Pollo" },
+          { label: "Pasta/Riso", icon: "🍝", value: "Pasta o Riso" },
+          { label: "Verdure", icon: <Leaf size={24}/>, value: "Verdure e Legumi" },
+          { label: "Uova/Formaggi", icon: "🧀", value: "Uova o Formaggi" }
+      ];
+
+      const styleOptions = [
+          { label: "Leggero & Fit", desc: "Poche calorie, equilibrato", value: "Leggero, sano e ipocalorico" },
+          { label: "Saporito & Ricco", desc: "Comfort food avvolgente", value: "Saporito, ricco e gustoso" },
+          { label: "Veloce & Easy", desc: "Pronto in 15 minuti", value: "Molto veloce e semplice da preparare" },
+          { label: "Gourmet", desc: "Per stupire gli ospiti", value: "Raffinato, stile ristorante" }
+      ];
+
+      return (
+        <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-4 max-w-2xl mx-auto">
+            <button onClick={() => isStepBase ? setView('mode_selection') : setWizardStep(0)} className="self-start mb-8 flex items-center text-gray-400 hover:text-green-600 transition text-sm"><ArrowLeft size={16} className="mr-1" /> Indietro</button>
+            
+            <div className="w-full mb-8">
+                <div className="flex justify-between mb-2">
+                    <span className={`text-sm font-bold ${isStepBase ? 'text-green-600' : 'text-green-800'}`}>Step 1: Ingrediente</span>
+                    <span className={`text-sm font-bold ${!isStepBase ? 'text-green-600' : 'text-gray-300'}`}>Step 2: Stile</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full bg-green-500 transition-all duration-500 ${isStepBase ? 'w-1/2' : 'w-full'}`}></div>
+                </div>
+            </div>
+
+            <h2 className="text-3xl font-bold text-gray-800 font-serif mb-8 text-center">
+                {isStepBase ? "Qual è l'ingrediente protagonista?" : "Che carattere diamo al piatto?"}
+            </h2>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
+                {isStepBase ? (
+                    baseOptions.map((opt) => (
+                        <button 
+                            key={opt.label}
+                            onClick={() => handleWizardOption('base', opt.value)}
+                            className="flex flex-col items-center justify-center p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-green-400 hover:bg-green-50 transition-all hover:-translate-y-1 hover:shadow-md gap-3"
+                        >
+                            <div className="text-3xl text-gray-700">{opt.icon}</div>
+                            <span className="font-bold text-gray-700">{opt.label}</span>
+                        </button>
+                    ))
+                ) : (
+                    styleOptions.map((opt) => (
+                        <button 
+                            key={opt.label}
+                            onClick={() => handleWizardOption('style', opt.value)}
+                            className="col-span-1 md:col-span-3 flex items-center p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-green-400 hover:bg-green-50 transition-all hover:-translate-y-1 hover:shadow-md text-left gap-4"
+                        >
+                            <div className="bg-green-100 p-3 rounded-full text-green-600"><CheckCircle size={24} /></div>
+                            <div>
+                                <div className="font-bold text-gray-800 text-lg">{opt.label}</div>
+                                <div className="text-gray-500 text-sm">{opt.desc}</div>
+                            </div>
+                        </button>
+                    ))
+                )}
+            </div>
+        </div>
+      );
+  };
+
   const renderHome = () => {
     const currentMeals = dailyMeals[mealType] || [];
     const isLunch = mealType === 'pranzo';
@@ -432,30 +640,25 @@ export default function ChefFinokioApp() {
                 </div>
                 <h2 className="text-3xl font-bold text-gray-800 font-serif">{isLunch ? "Menu Pranzo" : "Menu Cena"}</h2>
             </div>
-            <button onClick={handleGenerateDaily} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-green-200 flex items-center gap-2 font-semibold transition transform hover:scale-105">
-                <Sparkles size={20} /> Chiedi nuove idee allo Chef AI
+            <button onClick={() => generateRecipes(null)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-green-200 flex items-center gap-2 font-semibold transition transform hover:scale-105">
+                <Sparkles size={20} /> Idee Random
             </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4 pb-12">
             {currentMeals.map((meal) => (
             <div key={meal.id} onClick={() => handleSelectMeal(meal)} className="group bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer transform transition hover:-translate-y-2 hover:shadow-2xl border border-gray-100 flex flex-col h-full">
                 <div className="h-48 overflow-hidden relative">
-                    <img 
-                        src={meal.image || FALLBACK_IMAGE} 
-                        alt={meal.title} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
-                        onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMAGE; }}
-                    />
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-green-700 shadow-sm flex items-center gap-1"><Clock size={12} /> {meal.time}</div>
+                <img src={meal.image} alt={meal.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500"/>
+                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-green-700 shadow-sm flex items-center gap-1"><Clock size={12} /> {meal.time}</div>
                 </div>
                 <div className="p-6 flex flex-col flex-grow">
                     <h3 className="text-xl font-bold text-gray-800 mb-1">{meal.title}</h3>
                     <p className="text-green-600 font-medium text-sm mb-4">{meal.subtitle}</p>
-                    <div className="flex flex-wrap gap-2 mb-4">{(meal.tags || []).map(tag => (<span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">{tag}</span>))}</div>
+                    <div className="flex flex-wrap gap-2 mb-4">{meal.tags.map(tag => (<span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">{tag}</span>))}</div>
                     <div className="grid grid-cols-3 gap-2 border-t pt-4 text-center mt-auto">
-                        <div><div className="text-xs text-gray-400 uppercase font-bold">Prot</div><div className="font-semibold text-gray-700">{meal.nutrition?.protein || "?"}</div></div>
-                        <div><div className="text-xs text-gray-400 uppercase font-bold">Carb</div><div className="font-semibold text-gray-700">{meal.nutrition?.carbs || "?"}</div></div>
-                        <div><div className="text-xs text-gray-400 uppercase font-bold">Cal</div><div className="font-semibold text-gray-700">{meal.nutrition?.calories || "?"}</div></div>
+                        <div><div className="text-xs text-gray-400 uppercase font-bold">Prot</div><div className="font-semibold text-gray-700">{meal.nutrition.protein}</div></div>
+                        <div><div className="text-xs text-gray-400 uppercase font-bold">Carb</div><div className="font-semibold text-gray-700">{meal.nutrition.carbs}</div></div>
+                        <div><div className="text-xs text-gray-400 uppercase font-bold">Cal</div><div className="font-semibold text-gray-700">{meal.nutrition.calories}</div></div>
                     </div>
                 </div>
             </div>
@@ -466,8 +669,6 @@ export default function ChefFinokioApp() {
   };
 
   const renderDetail = () => {
-    if (!selectedMeal) return null; // Sicurezza extra
-
     const getStepText = (step) => {
       if (typeof step === 'string') return step;
       if (typeof step === 'object' && step !== null) {
@@ -479,19 +680,14 @@ export default function ChefFinokioApp() {
     return (
     <div className="animate-fade-in max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden my-4 relative">
       <div className="relative h-72 md:h-96">
-        <img 
-            src={selectedMeal.image || FALLBACK_IMAGE} 
-            alt={selectedMeal.title} 
-            className="w-full h-full object-cover"
-            onError={(e) => { e.target.onerror = null; e.target.src = FALLBACK_IMAGE; }}
-        />
+        <img src={selectedMeal.image} alt={selectedMeal.title} className="w-full h-full object-cover"/>
         <button onClick={() => setView('home')} className="absolute top-6 left-6 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition text-gray-700 z-10"><ArrowLeft size={24} /></button>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">{selectedMeal.title}</h2>
             <div className="flex items-center gap-4 text-white/90">
                 <span className="flex items-center gap-1"><Clock size={16}/> {selectedMeal.time}</span>
                 <span className="flex items-center gap-1"><Users size={16}/> {selectedMeal.servings} Persone</span>
-                <span className="flex items-center gap-1"><Flame size={16}/> {selectedMeal.nutrition?.calories || "?"}</span>
+                <span className="flex items-center gap-1"><Flame size={16}/> {selectedMeal.nutrition.calories}</span>
             </div>
         </div>
       </div>
@@ -508,7 +704,7 @@ export default function ChefFinokioApp() {
                 <h3 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2"><Utensils className="text-green-600" size={20}/> Preparazione</h3>
                 <p className="text-gray-600 mb-6 italic border-l-4 border-green-200 pl-4">"{selectedMeal.description}"</p>
                 <ol className="space-y-4 relative border-l border-gray-200 ml-3">
-                    {(selectedMeal.steps || []).map((step, idx) => {
+                    {selectedMeal.steps.map((step, idx) => {
                          const stepText = getStepText(step);
                          return (
                            <li key={idx} className="mb-4 ml-6">
@@ -524,10 +720,10 @@ export default function ChefFinokioApp() {
             <div className="bg-green-50 rounded-2xl p-6 border border-green-100">
                 <h3 className="text-lg font-bold text-green-800 mb-4">Valori Nutrizionali</h3>
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Proteine</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition?.protein || "?"}</div></div>
-                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Carboidrati</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition?.carbs || "?"}</div></div>
-                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Fibre</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition?.fiber || "?"}</div></div>
-                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Kcal</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition?.calories || "?"}</div></div>
+                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Proteine</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition.protein}</div></div>
+                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Carboidrati</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition.carbs}</div></div>
+                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Fibre</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition.fiber}</div></div>
+                    <div className="bg-white p-3 rounded-xl shadow-sm"><div className="text-sm text-gray-500">Kcal</div><div className="text-xl font-bold text-gray-800">{selectedMeal.nutrition.calories}</div></div>
                 </div>
             </div>
             <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
@@ -548,7 +744,7 @@ export default function ChefFinokioApp() {
         <div className="p-6">
             <p className="text-gray-500 text-sm mb-4 bg-yellow-50 p-3 rounded-lg border border-yellow-100"><span className="font-bold">Istruzioni:</span> Spunta gli ingredienti che hai già in casa per calcolare il costo reale.</p>
             <div className="space-y-3">
-                {(selectedMeal.ingredients || []).map((ing, index) => {
+                {selectedMeal.ingredients.map((ing, index) => {
                     const isChecked = !!checkedIngredients[index];
                     return (
                         <div key={index} onClick={() => toggleIngredient(index)} className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition border ${isChecked ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200 hover:border-green-300 hover:bg-green-50/50'}`}>
@@ -573,7 +769,7 @@ export default function ChefFinokioApp() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-12 relative">
       <style>{`@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }`}</style>
-      {isLoading && <LoadingOverlay text={loadingText} />}
+      {isLoading && <LoadingOverlay text={loadingText} subText={loadingSubText} showImageIcon={showImageIcon} />}
       {view !== 'welcome' && (
         <header className="bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">
             <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
