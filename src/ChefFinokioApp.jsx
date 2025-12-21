@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target, ImageIcon } from 'lucide-react';
+import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target } from 'lucide-react';
 
 // --- API CONFIGURATION ---
-const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+const API_KEY = ""; // Inserisci qui la tua API Key se non usi l'ambiente di default
 
-// --- IMAGE MAPPING (fallback) ---
+// --- IMAGE MAPPING (FALLBACK) ---
 const IMAGE_CATEGORIES = {
   fish: [
     "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
@@ -176,26 +176,20 @@ const AppLogo = ({ size = "default" }) => {
     );
 };
 
-const LoadingOverlay = ({ text, subText, showImageIcon }) => (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+const LoadingOverlay = ({ text }) => (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
         <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-sm w-full text-center">
             <div className="relative">
                 <div className="w-20 h-20 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    {showImageIcon ? (
-                        <div className="bg-purple-100 p-2 rounded-full">
-                            <ImageIcon size={24} className="text-purple-600" />
-                        </div>
-                    ) : (
-                        <div className="transform scale-75">
-                             <AppLogo />
-                        </div>
-                    )}
+                    <div className="transform scale-75">
+                         <AppLogo />
+                    </div>
                 </div>
             </div>
             <div>
-                <h3 className="text-xl font-bold text-gray-800">{text}</h3>
-                {subText && <p className="text-gray-500 text-sm mt-2">{subText}</p>}
+                <h3 className="text-xl font-bold text-gray-800">Chef Finokio sta pensando...</h3>
+                <p className="text-gray-500 text-sm mt-2 animate-pulse font-medium">{text}</p>
             </div>
         </div>
     </div>
@@ -211,8 +205,6 @@ export default function ChefFinokioApp() {
   const [currentDate, setCurrentDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
-  const [loadingSubText, setLoadingSubText] = useState('');
-  const [showImageIcon, setShowImageIcon] = useState(false);
   
   // Wizard State
   const [wizardStep, setWizardStep] = useState(0);
@@ -225,13 +217,14 @@ export default function ChefFinokioApp() {
   }, []);
 
   // --- API CALLS ---
-  
+
   const callGemini = async (prompt) => {
-    if (!API_KEY) return null;
+    // Usa la chiave fornita se presente, altrimenti stringa vuota (l'ambiente inietterà se disponibile)
+    const key = API_KEY || ""; 
     
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -243,7 +236,7 @@ export default function ChefFinokioApp() {
         );
         const data = await response.json();
         const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!jsonText) throw new Error("No data");
+        if (!jsonText) throw new Error("No data from Gemini");
         return JSON.parse(jsonText);
     } catch (error) {
         console.error("Gemini Error:", error);
@@ -251,93 +244,41 @@ export default function ChefFinokioApp() {
     }
   };
 
-  // Genera immagine con Imagen (Nano Banana)
-  const generateImageWithImagen = async (dishTitle, dishDescription) => {
-    if (!API_KEY) return null;
-    
-    const imagePrompt = `Professional food photography of "${dishTitle}". ${dishDescription}. Beautifully plated on a ceramic dish, soft natural lighting, shallow depth of field, top-down angle, rustic wooden table background, garnished elegantly, restaurant quality presentation, 4K, photorealistic.`;
-    
+  const callImagen = async (prompt) => {
+    const key = API_KEY || "";
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${key}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    instances: [{ prompt: imagePrompt }],
-                    parameters: {
-                        sampleCount: 1,
-                        aspectRatio: "4:3",
-                        safetyFilterLevel: "block_few",
-                        personGeneration: "dont_allow"
-                    }
+                    instances: [{ prompt: prompt }],
+                    parameters: { sampleCount: 1 }
                 })
             }
         );
-        
         const data = await response.json();
-        
-        // Imagen restituisce l'immagine in base64
-        if (data.predictions && data.predictions[0]?.bytesBase64Encoded) {
-            const base64Image = data.predictions[0].bytesBase64Encoded;
-            return `data:image/png;base64,${base64Image}`;
-        }
-        
-        return null;
+        const base64 = data.predictions?.[0]?.bytesBase64Encoded;
+        if (!base64) throw new Error("No image data from Imagen");
+        return `data:image/png;base64,${base64}`;
     } catch (error) {
         console.error("Imagen Error:", error);
         return null;
     }
   };
 
-  // Genera immagini per tutte le ricette
-  const generateImagesForMeals = async (meals) => {
-    const mealsWithImages = [];
-    
-    for (let i = 0; i < meals.length; i++) {
-        const meal = meals[i];
-        setLoadingSubText(`Immagine ${i + 1} di ${meals.length}: ${meal.title}`);
-        
-        const generatedImage = await generateImageWithImagen(meal.title, meal.description);
-        
-        mealsWithImages.push({
-            ...meal,
-            image: generatedImage || getRandomImage(meal.category) // Fallback se l'immagine non viene generata
-        });
-    }
-    
-    return mealsWithImages;
-  };
-
   const handleSetMealType = (type) => {
       setMealType(type);
-      setView('mode_selection');
+      setView('mode_selection'); 
   };
 
   const generateRecipes = async (preferences = null) => {
     setIsLoading(true);
-    setShowImageIcon(false);
-    setLoadingText("Majakol sta creando i piatti...");
-    setLoadingSubText("Analisi ingredienti e combinazioni in corso");
+    setLoadingText(preferences ? "Chef Finokio sta creando il menu su misura..." : "Chef Finokio sta inventando qualcosa di speciale...");
     
-    if(!API_KEY) {
-        setTimeout(() => {
-            setIsLoading(false);
-            setLoadingSubText('');
-            if (!preferences) {
-                if(dailyMeals[mealType]?.length > 0) {
-                     setView('home');
-                } else {
-                     alert("Per usare l'IA reale, inserisci la tua API KEY nel codice.");
-                     setView('home'); 
-                }
-            } else {
-                alert("Per generare ricette personalizzate serve l'API KEY. Ti mostrerò il menu standard.");
-                setView('home');
-            }
-        }, 1500);
-        return;
-    }
+    // Check di sicurezza: se siamo in locale senza proxy o env, avvisiamo
+    // In questo ambiente l'API key viene iniettata, quindi procediamo
     
     let promptContext = "";
     if (preferences) {
@@ -346,55 +287,48 @@ export default function ChefFinokioApp() {
         promptContext = `Scegli tu gli ingredienti in base alla creatività e stagionalità.`;
     }
 
-    const prompt = `Sei uno chef esperto italiano. Genera esattamente 3 ricette per ${mealType}. ${promptContext} 
-    
-    IMPORTANTE: Rispondi SOLO con un array JSON valido, senza testo aggiuntivo.
-    
-    Struttura richiesta per ogni ricetta:
-    {
-      "id": "stringa univoca",
-      "title": "Nome del piatto",
-      "subtitle": "Breve slogan (3-4 parole)",
-      "description": "Descrizione appetitosa del piatto (2 frasi)",
-      "category": "fish|meat|pasta|veggie|salad",
-      "tags": ["tag1", "tag2", "tag3"],
-      "nutrition": {
-        "protein": "XXg",
-        "carbs": "XXg", 
-        "fiber": "Xg",
-        "calories": "XXX kcal"
-      },
-      "time": "XX min",
-      "servings": 2,
-      "steps": ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"],
-      "ingredients": [
-        {"name": "Ingrediente", "qty": "quantità", "cost": numero_decimale}
-      ]
-    }`;
+    // 1. Generate Recipes Text
+    const prompt = `Genera 3 ricette per ${mealType}. ${promptContext} JSON array output con struttura: [{id, title, subtitle, description, category, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}]`;
     
     const newMeals = await callGemini(prompt);
     
     if (newMeals && Array.isArray(newMeals)) {
-        // FASE 2: Generazione immagini
-        setShowImageIcon(true);
-        setLoadingText("Majakol sta creando le immagini dei piatti...");
-        setLoadingSubText("Preparazione visualizzazione gourmet");
+        // 2. Generate Images for each recipe
+        const mealsWithImages = [];
         
-        const mealsWithImages = await generateImagesForMeals(newMeals);
-        
+        for (let i = 0; i < newMeals.length; i++) {
+            const meal = newMeals[i];
+            
+            // UI Update: Specificare cosa sta accadendo
+            setLoadingText(`Sto immaginando il piatto ${i+1} di ${newMeals.length}: "${meal.title}"...`);
+            
+            const imagePrompt = `Professional food photography of ${meal.title}, ${meal.description}. High quality, photorealistic, 4k, delicious, restaurant lighting, top down view.`;
+            
+            // Tentativo di generare l'immagine
+            const generatedImage = await callImagen(imagePrompt);
+            
+            mealsWithImages.push({
+                ...meal,
+                // Se Imagen fallisce, usa Unsplash come fallback
+                image: generatedImage || getRandomImage(meal.category) 
+            });
+        }
+
         setDailyMeals(prev => ({ ...prev, [mealType]: mealsWithImages }));
         setView('home');
     } else {
-        // Fallback: usa immagini stock se la generazione fallisce
-        alert("Errore nella generazione. Riprova!");
+        // Fallback in case Gemini fails completely
+        if(!preferences) {
+           alert("Impossibile contattare l'IA al momento. Ti mostro il menu del giorno.");
+        }
+        // Se c'erano già dati, non facciamo nulla e torniamo alla home
+        if(dailyMeals[mealType]?.length > 0) setView('home');
     }
     
     setIsLoading(false);
-    setLoadingSubText('');
-    setShowImageIcon(false);
   };
 
-  const handleGenerateDaily = () => generateRecipes(null);
+  const handleGenerateDaily = () => generateRecipes(null); 
 
   const handleWizardOption = (key, value) => {
       setWizardPreferences(prev => ({ ...prev, [key]: value }));
@@ -407,66 +341,48 @@ export default function ChefFinokioApp() {
   };
 
   const handleGenerateVariant = async () => {
-    if(!API_KEY) { alert("Per usare questa funzione, inserisci la tua API Key Gemini nel codice."); return; }
     setIsLoading(true);
-    setShowImageIcon(false);
-    setLoadingText("Majakol sta creando la variante...");
-    setLoadingSubText("Rielaborazione ricetta in corso");
+    setLoadingText("Sto elaborando una variante della ricetta...");
     
-    const prompt = `Crea una variante della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci JSON con stessa struttura.`;
+    const prompt = `Crea una variante creativa della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci JSON con stessa struttura.`;
     const variant = await callGemini(prompt);
     
     if (variant) {
-        // Genera immagine per la variante
-        setShowImageIcon(true);
-        setLoadingText("Majakol sta creando l'immagine...");
-        setLoadingSubText(variant.title || "Nuova variante");
+        setLoadingText(`Sto fotografando la variante: ${variant.title}...`);
         
-        const generatedImage = await generateImageWithImagen(
-            variant.title || selectedMeal.title, 
-            variant.description || selectedMeal.description
-        );
-        
-        variant.image = generatedImage || selectedMeal.image;
+        const imagePrompt = `Professional food photography of ${variant.title}, ${variant.description}. High quality, photorealistic, 4k, delicious, vibrant colors.`;
+        const generatedImage = await callImagen(imagePrompt);
+
+        variant.image = generatedImage || selectedMeal.image; 
         variant.title = "Variante: " + (variant.title || selectedMeal.title);
-        variant.id = selectedMeal.id + "_var";
+        variant.id = selectedMeal.id + "_var_" + Date.now();
+        
         handleSelectMeal(variant);
     }
     setIsLoading(false);
-    setShowImageIcon(false);
-    setLoadingSubText('');
   };
 
   const handleRemixIngredients = async () => {
-    if(!API_KEY) { alert("Per usare questa funzione, inserisci la tua API Key Gemini nel codice."); return; }
     setIsLoading(true);
-    setShowImageIcon(false);
-    setLoadingText("Majakol sta remixando gli ingredienti...");
-    setLoadingSubText("Combinazioni creative in elaborazione");
+    setLoadingText("Sto remixando gli ingredienti...");
     
     const mainIngredients = selectedMeal.ingredients.map(i => i.name).slice(0, 3).join(", ");
-    const prompt = `Crea una nuova ricetta usando questi ingredienti: ${mainIngredients}. Restituisci JSON con struttura completa incluso category (fish|meat|pasta|veggie|salad).`;
+    const prompt = `Crea una nuova ricetta COMPLETAMENTE diversa usando questi ingredienti: ${mainIngredients}. Restituisci JSON con struttura completa.`;
     const remix = await callGemini(prompt);
     
     if (remix) {
-        // Genera immagine per il remix
-        setShowImageIcon(true);
-        setLoadingText("Majakol sta creando l'immagine...");
-        setLoadingSubText(remix.title || "Remix creativo");
+        setLoadingText(`Sto creando la foto del remix: ${remix.title}...`);
         
-        const generatedImage = await generateImageWithImagen(
-            remix.title || "Piatto Remix", 
-            remix.description || "Un piatto creativo con ingredienti remixati"
-        );
-        
+        const imagePrompt = `Professional food photography of ${remix.title}, ${remix.description}. High quality, photorealistic, 4k, delicious, artistic plating.`;
+        const generatedImage = await callImagen(imagePrompt);
+
         remix.image = generatedImage || getRandomImage(remix.category);
         remix.title = "Remix: " + (remix.title || "Nuova Ricetta");
         remix.id = "remix_" + Date.now();
+        
         handleSelectMeal(remix);
     }
     setIsLoading(false);
-    setShowImageIcon(false);
-    setLoadingSubText('');
   };
 
   const handleSelectMeal = (meal) => { setSelectedMeal(meal); setCheckedIngredients({}); setView('detail'); };
@@ -546,7 +462,7 @@ export default function ChefFinokioApp() {
             className="group relative bg-white border-2 border-green-100 hover:border-green-400 hover:bg-green-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
           >
               <div className="absolute top-6 right-6 bg-green-100 p-3 rounded-full text-green-600 group-hover:scale-110 transition"><Lightbulb size={32} /></div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Ho qualcosa in casa...</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Ho qualche idea...</h3>
               <p className="text-gray-500 text-sm leading-relaxed">
                   Hai del pollo in frigo? O voglia di qualcosa di leggero? Guida lo Chef verso la ricetta perfetta per te.
               </p>
@@ -769,7 +685,7 @@ export default function ChefFinokioApp() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-12 relative">
       <style>{`@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }`}</style>
-      {isLoading && <LoadingOverlay text={loadingText} subText={loadingSubText} showImageIcon={showImageIcon} />}
+      {isLoading && <LoadingOverlay text={loadingText} />}
       {view !== 'welcome' && (
         <header className="bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">
             <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
