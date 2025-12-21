@@ -736,15 +736,9 @@ export default function ChefFinokioApp() {
             <button onClick={() => setView(returnView)} className="bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition text-gray-700"><ArrowLeft size={24} /></button>
             <button 
                 onClick={(e) => { e.stopPropagation(); toggleFavorite(selectedMeal); }} 
-                className={`p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 ${isFav ? 'bg-pink-500 text-white shadow-pink-200' : 'bg-white/90 hover:bg-white text-gray-400'}`}
+                className={`p-3 rounded-full shadow-lg transition transform hover:scale-110 ${isFav ? 'bg-pink-500 text-white' : 'bg-white/90 hover:bg-white text-gray-400'}`}
             >
-                <Heart 
-                    size={24} 
-                    fill={isFav ? "currentColor" : "none"} 
-                    strokeWidth={isFav ? 0 : 2}
-                    className={isFav ? "animate-heart-burst" : ""}
-                    key={isFav ? "fav" : "not-fav"}
-                />
+                <Heart size={24} fill={isFav ? "currentColor" : "none"} strokeWidth={isFav ? 0 : 2}/>
             </button>
         </div>
 
@@ -853,18 +847,7 @@ export default function ChefFinokioApp() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-12 relative">
-      <style>{`
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } 
-        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-        @keyframes heart-burst {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.4); }
-            100% { transform: scale(1); }
-        }
-        .animate-heart-burst {
-            animation: heart-burst 0.3s ease-out;
-        }
-      `}</style>
+      <style>{`@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }`}</style>
       {isLoading && <LoadingOverlay text={loadingText} />}
       {view !== 'welcome' && (
         <header className="bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">

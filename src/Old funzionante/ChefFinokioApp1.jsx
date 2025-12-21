@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target, AlertTriangle, MessageCircle, Heart } from 'lucide-react';
+import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target, AlertTriangle } from 'lucide-react';
 
 // --- API CONFIGURATION ---
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -198,7 +198,6 @@ const LoadingOverlay = ({ text }) => (
 // MAIN APP COMPONENT
 export default function ChefFinokioApp() {
   const [view, setView] = useState('welcome');
-  const [returnView, setReturnView] = useState('welcome'); // Track where we came from
   const [mealType, setMealType] = useState(null);
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [checkedIngredients, setCheckedIngredients] = useState({});
@@ -207,25 +206,6 @@ export default function ChefFinokioApp() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   
-  // Favorites State with LocalStorage
-  const [favorites, setFavorites] = useState(() => {
-    try {
-        const saved = localStorage.getItem('chefFinokioFavorites');
-        return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-        console.error("Failed to load favorites", e);
-        return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-        localStorage.setItem('chefFinokioFavorites', JSON.stringify(favorites));
-    } catch (e) {
-        console.error("Failed to save favorites", e);
-    }
-  }, [favorites]);
-
   // Wizard State
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardPreferences, setWizardPreferences] = useState({ base: '', style: '' });
@@ -303,6 +283,9 @@ export default function ChefFinokioApp() {
     setIsLoading(true);
     setLoadingText(preferences ? "Chef Finokio sta creando il menu su misura..." : "Chef Finokio sta inventando qualcosa di speciale...");
     
+    // Check di sicurezza: se siamo in locale senza proxy o env, avvisiamo
+    // In questo ambiente l'API key viene iniettata, quindi procediamo
+    
     let promptContext = "";
     if (preferences) {
         promptContext = `L'utente vuole cucinare qualcosa a base di ${preferences.base} con uno stile ${preferences.style}.`;
@@ -342,8 +325,7 @@ export default function ChefFinokioApp() {
     } else {
         // Fallback with specific error for Online/Missing Key
         if (!API_KEY) {
-            // Niente alert in ambiente di test se fallisce silentemente
-            console.warn("API Key mancante o errore di rete");
+            alert("ERRORE ONLINE: Sembra mancare la Google API Key. In Anteprima funziona grazie a una chiave di test temporanea, ma online devi inserire la tua chiave personale nel codice alla variabile 'const API_KEY'.");
         } else {
             alert("Impossibile contattare l'IA al momento. Riprova più tardi.");
         }
@@ -384,9 +366,9 @@ export default function ChefFinokioApp() {
         variant.title = "Variante: " + (variant.title || selectedMeal.title);
         variant.id = selectedMeal.id + "_var_" + Date.now();
         
-        handleSelectMeal(variant, 'detail'); // Stay in detail view
+        handleSelectMeal(variant);
     } else {
-        if (!API_KEY) console.warn("Manca la API Key");
+        if (!API_KEY) alert("ERRORE ONLINE: Manca la API Key nel codice.");
         else alert("Errore nella generazione della variante.");
     }
     setIsLoading(false);
@@ -410,70 +392,28 @@ export default function ChefFinokioApp() {
         remix.title = "Remix: " + (remix.title || "Nuova Ricetta");
         remix.id = "remix_" + Date.now();
         
-        handleSelectMeal(remix, 'detail');
+        handleSelectMeal(remix);
     } else {
-        if (!API_KEY) console.warn("Manca la API Key");
+        if (!API_KEY) alert("ERRORE ONLINE: Manca la API Key nel codice.");
         else alert("Errore nel remix.");
     }
     setIsLoading(false);
   };
 
-  const handleSelectMeal = (meal, fromView = 'home') => { 
-      setSelectedMeal(meal); 
-      setCheckedIngredients({}); 
-      setReturnView(fromView);
-      setView('detail'); 
-  };
-  
+  const handleSelectMeal = (meal) => { setSelectedMeal(meal); setCheckedIngredients({}); setView('detail'); };
   const resetApp = () => { setView('welcome'); setMealType(null); setSelectedMeal(null); setWizardStep(0); setWizardPreferences({ base: '', style: '' }); };
   const toggleIngredient = (index) => { setCheckedIngredients(prev => ({ ...prev, [index]: !prev[index] })); };
-
-  // Favorites Logic
-  const toggleFavorite = (meal) => {
-    setFavorites(prev => {
-        const isFav = prev.some(f => f.id === meal.id);
-        if (isFav) {
-            return prev.filter(f => f.id !== meal.id);
-        } else {
-            return [...prev, meal];
-        }
-    });
-  };
-
-  const isFavorite = (mealId) => favorites.some(f => f.id === mealId);
   
   const calculateCosts = useMemo(() => {
-    if (!selectedMeal || !selectedMeal.ingredients) return { total: 0, remaining: 0 };
+    if (!selectedMeal) return { total: 0, remaining: 0 };
     let total = 0; 
     let remaining = 0;
     selectedMeal.ingredients.forEach((ing, index) => {
-      // Robustezza: converti in numero e gestisci valori nulli/stringhe
-      const cost = Number(ing.cost) || 0;
-      total += cost;
-      if (!checkedIngredients[index]) { remaining += cost; }
+      total += ing.cost;
+      if (!checkedIngredients[index]) { remaining += ing.cost; }
     });
     return { total, remaining };
   }, [selectedMeal, checkedIngredients]);
-
-  const handleShareWhatsApp = () => {
-      if (!selectedMeal || !selectedMeal.ingredients) return;
-      
-      const missing = selectedMeal.ingredients.filter((_, idx) => !checkedIngredients[idx]);
-      
-      if (missing.length === 0) {
-          alert("Hai già tutto! Nessun ingrediente da comprare.");
-          return;
-      }
-
-      let text = `🛒 *Lista Spesa: ${selectedMeal.title}*\n\n`;
-      missing.forEach(ing => {
-          text += `▫️ ${ing.name} (${ing.qty})\n`;
-      });
-      text += `\nGenerato da Chef Finokio AI 👨‍🍳`;
-
-      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-      window.open(url, '_blank');
-  };
 
   // Views
   const renderWelcome = () => (
@@ -504,59 +444,8 @@ export default function ChefFinokioApp() {
             <h2 className="text-2xl font-bold text-gray-800">Menu Cena</h2>
         </button>
       </div>
-
-      <div className="w-full max-w-md">
-         <button onClick={() => setView('favorites')} className="w-full bg-white hover:bg-pink-50 border-2 border-pink-100 hover:border-pink-300 text-pink-600 font-bold py-4 px-6 rounded-2xl shadow-sm hover:shadow-lg transition flex items-center justify-center gap-3 transform hover:-translate-y-1">
-             <Heart size={24} fill="currentColor" className="text-pink-500" />
-             I Tuoi Preferiti ({favorites.length})
-         </button>
-      </div>
     </div>
   );
-
-  const renderFavorites = () => {
-    return (
-        <div className="animate-fade-in space-y-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-6 border-b border-gray-100">
-                <div className="text-center md:text-left">
-                    <button onClick={() => setView('welcome')} className="flex items-center gap-2 text-gray-400 hover:text-green-600 transition mb-2 mx-auto md:mx-0"><ArrowLeft size={16}/> Torna alla Home</button>
-                    <h2 className="text-3xl font-bold text-gray-800 font-serif flex items-center gap-3">
-                        <Heart className="text-pink-500" fill="currentColor" /> Le Tue Ricette
-                    </h2>
-                </div>
-            </div>
-            
-            {favorites.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <div className="bg-pink-50 p-6 rounded-full mb-6">
-                        <Heart size={48} className="text-pink-300" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-700 mb-2">Ancora nessun preferito</h3>
-                    <p className="text-gray-500 max-w-sm mb-8">Salva le ricette che ti piacciono di più cliccando sul cuore nella pagina di dettaglio.</p>
-                    <button onClick={() => setView('welcome')} className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition">Inizia a scoprire</button>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4 pb-12">
-                    {favorites.map((meal) => (
-                    <div key={meal.id} onClick={() => handleSelectMeal(meal, 'favorites')} className="group bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer transform transition hover:-translate-y-2 hover:shadow-2xl border border-gray-100 flex flex-col h-full relative">
-                        <div className="h-48 overflow-hidden relative">
-                        <img src={meal.image} alt={meal.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500"/>
-                        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-sm text-pink-500">
-                             <Heart size={16} fill="currentColor"/>
-                        </div>
-                        </div>
-                        <div className="p-6 flex flex-col flex-grow">
-                            <h3 className="text-xl font-bold text-gray-800 mb-1">{meal.title}</h3>
-                            <p className="text-green-600 font-medium text-sm mb-4">{meal.subtitle}</p>
-                            <div className="flex flex-wrap gap-2 mb-4">{meal.tags.map(tag => (<span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">{tag}</span>))}</div>
-                        </div>
-                    </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-  };
 
   const renderModeSelection = () => (
     <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh] px-4 space-y-10">
@@ -688,15 +577,10 @@ export default function ChefFinokioApp() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4 pb-12">
             {currentMeals.map((meal) => (
-            <div key={meal.id} onClick={() => handleSelectMeal(meal, 'home')} className="group bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer transform transition hover:-translate-y-2 hover:shadow-2xl border border-gray-100 flex flex-col h-full relative">
+            <div key={meal.id} onClick={() => handleSelectMeal(meal)} className="group bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer transform transition hover:-translate-y-2 hover:shadow-2xl border border-gray-100 flex flex-col h-full">
                 <div className="h-48 overflow-hidden relative">
                 <img src={meal.image} alt={meal.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500"/>
                 <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-green-700 shadow-sm flex items-center gap-1"><Clock size={12} /> {meal.time}</div>
-                {isFavorite(meal.id) && (
-                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm p-1.5 rounded-full shadow-sm text-pink-500">
-                         <Heart size={14} fill="currentColor"/>
-                    </div>
-                )}
                 </div>
                 <div className="p-6 flex flex-col flex-grow">
                     <h3 className="text-xl font-bold text-gray-800 mb-1">{meal.title}</h3>
@@ -724,30 +608,11 @@ export default function ChefFinokioApp() {
       return "Segui le istruzioni...";
     };
 
-    const isFav = isFavorite(selectedMeal.id);
-
     return (
     <div className="animate-fade-in max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden my-4 relative">
       <div className="relative h-72 md:h-96">
         <img src={selectedMeal.image} alt={selectedMeal.title} className="w-full h-full object-cover"/>
-        
-        {/* Navigation Buttons */}
-        <div className="absolute top-6 left-6 right-6 flex justify-between items-start z-10">
-            <button onClick={() => setView(returnView)} className="bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition text-gray-700"><ArrowLeft size={24} /></button>
-            <button 
-                onClick={(e) => { e.stopPropagation(); toggleFavorite(selectedMeal); }} 
-                className={`p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 ${isFav ? 'bg-pink-500 text-white shadow-pink-200' : 'bg-white/90 hover:bg-white text-gray-400'}`}
-            >
-                <Heart 
-                    size={24} 
-                    fill={isFav ? "currentColor" : "none"} 
-                    strokeWidth={isFav ? 0 : 2}
-                    className={isFav ? "animate-heart-burst" : ""}
-                    key={isFav ? "fav" : "not-fav"}
-                />
-            </button>
-        </div>
-
+        <button onClick={() => setView('home')} className="absolute top-6 left-6 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition text-gray-700 z-10"><ArrowLeft size={24} /></button>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">{selectedMeal.title}</h2>
             <div className="flex items-center gap-4 text-white/90">
@@ -802,45 +667,27 @@ export default function ChefFinokioApp() {
   );
   };
 
-  const renderShoppingList = () => {
-    // Safety check: se per qualche motivo gli ingredienti non esistono, evitiamo il crash
-    const ingredients = selectedMeal?.ingredients || [];
-
-    return (
-    <div className="animate-fade-in max-w-2xl mx-auto my-6 px-4">
+  const renderShoppingList = () => (
+    <div className="animate-fade-in max-w-2xl mx-auto my-6">
        <button onClick={() => setView('detail')} className="mb-6 flex items-center text-gray-500 hover:text-green-600 transition"><ArrowLeft size={20} className="mr-2" /> Torna alla ricetta</button>
       <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
         <div className="bg-green-600 p-6 text-white flex justify-between items-center"><div><h2 className="text-2xl font-bold">Lista della Spesa</h2><p className="text-green-100 text-sm">per {selectedMeal.title}</p></div><ShoppingCart size={32} className="opacity-50" /></div>
         <div className="p-6">
             <p className="text-gray-500 text-sm mb-4 bg-yellow-50 p-3 rounded-lg border border-yellow-100"><span className="font-bold">Istruzioni:</span> Spunta gli ingredienti che hai già in casa per calcolare il costo reale.</p>
             <div className="space-y-3">
-                {ingredients.map((ing, index) => {
+                {selectedMeal.ingredients.map((ing, index) => {
                     const isChecked = !!checkedIngredients[index];
-                    const cost = Number(ing.cost) || 0;
                     return (
                         <div key={index} onClick={() => toggleIngredient(index)} className={`flex items-center justify-between p-4 rounded-xl cursor-pointer transition border ${isChecked ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200 hover:border-green-300 hover:bg-green-50/50'}`}>
                             <div className="flex items-center gap-4">
                                 <div className={`transition-colors ${isChecked ? 'text-green-500' : 'text-gray-300'}`}>{isChecked ? <CheckCircle size={24} fill="currentColor" className="text-white" /> : <Circle size={24} />}</div>
                                 <div><div className={`font-semibold text-lg ${isChecked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{ing.name}</div><div className="text-xs text-gray-500">Quantità: {ing.qty}</div></div>
                             </div>
-                            <div className={`font-mono font-bold ${isChecked ? 'text-gray-300 line-through' : 'text-green-700'}`}>€ {cost.toFixed(2)}</div>
+                            <div className={`font-mono font-bold ${isChecked ? 'text-gray-300 line-through' : 'text-green-700'}`}>€ {ing.cost.toFixed(2)}</div>
                         </div>
                     );
                 })}
-                {ingredients.length === 0 && <p className="text-center text-gray-400 py-4">Nessun ingrediente trovato.</p>}
             </div>
-            
-            {/* Pulsante WhatsApp */}
-            <div className="mt-8">
-                <button 
-                    onClick={handleShareWhatsApp}
-                    className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-3 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-3"
-                >
-                    <MessageCircle size={20} />
-                    Invia mancanti su WhatsApp
-                </button>
-            </div>
-
         </div>
         <div className="bg-gray-900 text-white p-6">
             <div className="flex justify-between items-center mb-2 text-gray-400 text-sm"><span>Costo Totale Stimato</span><span className="line-through">€ {calculateCosts.total.toFixed(2)}</span></div>
@@ -848,23 +695,11 @@ export default function ChefFinokioApp() {
         </div>
       </div>
     </div>
-    );
-  };
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-12 relative">
-      <style>{`
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } 
-        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-        @keyframes heart-burst {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.4); }
-            100% { transform: scale(1); }
-        }
-        .animate-heart-burst {
-            animation: heart-burst 0.3s ease-out;
-        }
-      `}</style>
+      <style>{`@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }`}</style>
       {isLoading && <LoadingOverlay text={loadingText} />}
       {view !== 'welcome' && (
         <header className="bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">
@@ -873,8 +708,8 @@ export default function ChefFinokioApp() {
                     <AppLogo />
                     <div><h1 className="text-2xl font-bold text-gray-800 tracking-tight leading-none">Chef <span className="text-green-600">Finokio</span></h1><p className="text-xs text-gray-400 font-medium tracking-widest uppercase">Majakol AI</p></div>
                 </div>
-                {view !== 'mode_selection' && view !== 'favorites' && (
-                    <div className="flex gap-3"><button onClick={() => setView(returnView)} className="hidden md:flex text-sm font-semibold text-gray-500 hover:text-green-600 transition items-center gap-1"><ArrowLeft size={16}/> Indietro</button></div>
+                {view !== 'mode_selection' && (
+                    <div className="flex gap-3"><button onClick={() => setView('mode_selection')} className="hidden md:flex text-sm font-semibold text-gray-500 hover:text-green-600 transition items-center gap-1"><ArrowLeft size={16}/> Indietro</button></div>
                 )}
             </div>
         </header>
@@ -884,7 +719,6 @@ export default function ChefFinokioApp() {
         {view === 'mode_selection' && renderModeSelection()}
         {view === 'wizard' && renderWizard()}
         {view === 'home' && renderHome()}
-        {view === 'favorites' && renderFavorites()}
         {view === 'detail' && renderDetail()}
         {view === 'shopping' && renderShoppingList()}
       </main>
