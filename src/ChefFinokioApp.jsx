@@ -3,13 +3,13 @@ import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, C
 
 // --- API CONFIGURATION ---
 // NOTA IMPORTANTE PER DAVIDE:
-// L'istruzione qui sotto serve per leggere la chiave dal tuo file .env sul PC o da Vercel.
-// Qui nell'anteprima è commentata per evitare errori tecnici, ma TU DEVI SCOMMENTARLA nel tuo file locale.
+// Per evitare errori nell'anteprima qui, ho commentato la riga che legge la chiave.
+// QUANDO SEI SUL TUO COMPUTER O SU VERCEL:
+// 1. Togli i due slash (//) dalla riga 'const API_KEY = import.meta.env...'
+// 2. Aggiungi due slash (//) davanti alla riga 'const API_KEY = "";'
 
-// Togli i due slash (//) all'inizio della riga successiva quando usi il codice sul tuo PC:
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY; 
-const API_KEY = ""; // Lascia questa vuota per l'anteprima qui nel browser
-
+//const API_KEY = "";
 // --- IMAGE MAPPING ---
 // Immagini di fallback sicure se quelle specifiche falliscono
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800";
