@@ -4,42 +4,162 @@ import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, C
 // --- API CONFIGURATION ---
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
-// --- AI IMAGE GENERATOR HELPER ---
-// Utilizza Pollinations.ai per generare immagini al volo basate sul testo (simulando Nano Banana)
-const getAIImage = (description) => {
-    const encodedPrompt = encodeURIComponent(`professional food photography, michelin star plating, ${description}, 4k, highly detailed, appetizing`);
-    // Aggiungiamo un seed casuale per variare l'immagine ogni volta
-    const seed = Math.floor(Math.random() * 1000);
-    return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&seed=${seed}`;
+// --- IMAGE MAPPING ---
+const IMAGE_CATEGORIES = {
+  fish: [
+    "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?auto=format&fit=crop&q=80&w=800"
+  ],
+  meat: [
+    "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=800"
+  ],
+  pasta: [
+    "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1551326844-f459e292fd79?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&q=80&w=800"
+  ],
+  veggie: [
+    "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2b?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1520072959219-c595dc3f3dbd?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=800"
+  ],
+  salad: [
+    "https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&q=80&w=800"
+  ]
+};
+
+const getRandomImage = (category) => {
+  const cat = category?.toLowerCase();
+  const list = IMAGE_CATEGORIES[cat] || IMAGE_CATEGORIES.veggie; 
+  return list[Math.floor(Math.random() * list.length)];
 };
 
 // --- DATA ---
-// Fallback data se l'API non è presente
 const INITIAL_MEALS = {
   pranzo: [
     {
       id: "p1",
       title: "Bowl di Salmone e Quinoa",
       subtitle: "L'Equilibrio Perfetto",
-      description: "Un piatto unico fresco e nutriente con salmone e avocado.",
-      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
+      description: "Un piatto unico fresco e nutriente. Salmone ricco di Omega-3, quinoa per carboidrati complessi e avocado per grassi sani.",
+      image: IMAGE_CATEGORIES.fish[0],
       tags: ["Proteine Alte", "Gluten Free", "Omega-3"],
       nutrition: { protein: "35g", carbs: "45g", fiber: "8g", calories: "520 kcal" },
       time: "25 min", servings: 2,
-      steps: ["Sciacqua la quinoa.", "Marina il salmone.", "Componi la bowl."],
-      ingredients: [{ name: "Salmone", qty: "300g", cost: 9.50 }, { name: "Quinoa", qty: "150g", cost: 2.20 }]
+      steps: ["Sciacqua la quinoa e cuocila.", "Marina il salmone con soia.", "Taglia avocado e verdure.", "Componi la bowl.", "Condisci con olio e sesamo."],
+      ingredients: [
+        { name: "Salmone Fresco", qty: "300g", cost: 9.50 },
+        { name: "Quinoa", qty: "150g", cost: 2.20 },
+        { name: "Avocado", qty: "1 intero", cost: 1.80 },
+        { name: "Pomodorini", qty: "200g", cost: 1.50 },
+        { name: "Salsa Soia", qty: "q.b.", cost: 0.50 }
+      ]
+    },
+    {
+      id: "p2",
+      title: "Pollo al Curry con Riso",
+      subtitle: "Energia Speziata",
+      description: "Petto di pollo tenero cotto in una crema di curry e latte di cocco, servito con riso basmati profumato.",
+      image: IMAGE_CATEGORIES.meat[0],
+      tags: ["Energizzante", "Speziato", "Comfort Food"],
+      nutrition: { protein: "40g", carbs: "60g", fiber: "4g", calories: "610 kcal" },
+      time: "35 min", servings: 2,
+      steps: ["Rosola il pollo.", "Aggiungi curry e spezie.", "Versa latte di cocco.", "Cuoci il riso.", "Servi caldo."],
+      ingredients: [
+        { name: "Petto di Pollo", qty: "400g", cost: 5.50 },
+        { name: "Latte di Cocco", qty: "200ml", cost: 1.90 },
+        { name: "Riso Basmati", qty: "180g", cost: 1.20 },
+        { name: "Curry", qty: "10g", cost: 0.80 }
+      ]
+    },
+    {
+      id: "p3",
+      title: "Pasta Integrale Mediterranea",
+      subtitle: "Tradizione Veggie",
+      description: "Pasta integrale ricca di fibre condita con un sugo fresco di melanzane, pomodoro, olive e feta greca.",
+      image: IMAGE_CATEGORIES.pasta[0],
+      tags: ["Vegetariano", "Fibre Alte", "Veloce"],
+      nutrition: { protein: "18g", carbs: "70g", fiber: "12g", calories: "480 kcal" },
+      time: "20 min", servings: 2,
+      steps: ["Bollisci l'acqua.", "Salta le melanzane.", "Aggiungi pomodoro e olive.", "Scola la pasta.", "Aggiungi feta."],
+      ingredients: [
+        { name: "Pasta Integrale", qty: "200g", cost: 1.10 },
+        { name: "Melanzana", qty: "1 grande", cost: 1.30 },
+        { name: "Pomodori", qty: "250g", cost: 1.00 },
+        { name: "Feta", qty: "100g", cost: 2.50 }
+      ]
     }
   ],
-  cena: []
+  cena: [
+    {
+      id: "c1",
+      title: "Vellutata di Zucca",
+      subtitle: "Detox & Leggero",
+      description: "Una crema avvolgente e leggera. I ceci arrostiti aggiungono proteine e croccantezza.",
+      image: IMAGE_CATEGORIES.veggie[0],
+      tags: ["Vegano", "Low Carb", "Digeribile"],
+      nutrition: { protein: "15g", carbs: "30g", fiber: "14g", calories: "320 kcal" },
+      time: "30 min", servings: 2,
+      steps: ["Cuoci la zucca nel brodo.", "Frulla tutto.", "Arrostisci i ceci con paprika.", "Servi caldo."],
+      ingredients: [
+        { name: "Zucca", qty: "500g", cost: 1.50 },
+        { name: "Ceci in scatola", qty: "250g", cost: 0.90 },
+        { name: "Brodo Vegetale", qty: "500ml", cost: 0.50 }
+      ]
+    },
+    {
+      id: "c2",
+      title: "Filetto di Orata al Cartoccio",
+      subtitle: "Omega-3 & Salute",
+      description: "Cottura al vapore nel cartoccio per preservare tutti i nutrienti e il gusto delicato.",
+      image: IMAGE_CATEGORIES.fish[1],
+      tags: ["Pesce", "Senza Grassi", "Elegante"],
+      nutrition: { protein: "45g", carbs: "5g", fiber: "2g", calories: "380 kcal" },
+      time: "25 min", servings: 2,
+      steps: ["Pulisci i filetti.", "Metti su carta forno con pomodorini.", "Chiudi il cartoccio.", "Inforna a 180°C.", "Servi chiuso."],
+      ingredients: [
+        { name: "Filetti Orata", qty: "2 pz", cost: 8.00 },
+        { name: "Pomodorini", qty: "150g", cost: 1.20 },
+        { name: "Olive", qty: "30g", cost: 1.50 }
+      ]
+    },
+    {
+      id: "c3",
+      title: "Burger di Tacchino e Zucchine",
+      subtitle: "Fit & Proteico",
+      description: "Un secondo piatto gustoso ma magro. L'alternativa perfetta alla carne rossa.",
+      image: IMAGE_CATEGORIES.meat[1],
+      tags: ["Keto", "Alto Proteico", "Gluten Free"],
+      nutrition: { protein: "40g", carbs: "8g", fiber: "5g", calories: "410 kcal" },
+      time: "20 min", servings: 2,
+      steps: ["Grattugia zucchine.", "Mescola con tacchino.", "Forma burger.", "Cuoci su piastra.", "Servi con insalata."],
+      ingredients: [
+        { name: "Macinato Tacchino", qty: "350g", cost: 4.50 },
+        { name: "Zucchine", qty: "2 medie", cost: 0.80 },
+        { name: "Insalata", qty: "1 busta", cost: 1.50 }
+      ]
+    }
+  ]
 };
 
 // --- COMPONENTS ---
 
 const AppLogo = ({ size = "default" }) => {
     const isLarge = size === "large";
+    
+    // MODIFICA: Dimensioni aumentate di circa il 30%
     const containerClasses = isLarge ? "w-32 h-32 border-4 shadow-xl" : "w-16 h-16 border-2 shadow-md";
     const iconSize = isLarge ? 64 : 32;
+    
+    // Stato per gestire errore caricamento immagine
     const [imageError, setImageError] = useState(false);
+
+    // Percorso del file logo.png che l'utente deve mettere in /public
     const logoSrc = "/logo.png";
 
     if (imageError) {
@@ -63,13 +183,10 @@ const AppLogo = ({ size = "default" }) => {
 };
 
 const LoadingOverlay = ({ text }) => (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
-        <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-6 shadow-2xl max-w-sm w-full text-center relative overflow-hidden">
-            {/* Background decorativo animato */}
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 via-yellow-400 to-green-600 animate-pulse"></div>
-            
-            <div className="relative mt-4">
-                <div className="w-24 h-24 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-sm w-full text-center">
+            <div className="relative">
+                <div className="w-20 h-20 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                     <div className="transform scale-75">
                          <AppLogo />
@@ -77,8 +194,8 @@ const LoadingOverlay = ({ text }) => (
                 </div>
             </div>
             <div>
-                <h3 className="text-xl font-bold text-gray-800">Chef Finokio all'opera</h3>
-                <p className="text-green-600 font-medium text-sm mt-3 animate-pulse">{text}</p>
+                <h3 className="text-xl font-bold text-gray-800">Chef Finokio sta pensando...</h3>
+                <p className="text-gray-500 text-sm mt-2">{text}</p>
             </div>
         </div>
     </div>
@@ -107,6 +224,7 @@ export default function ChefFinokioApp() {
 
   const callGemini = async (prompt) => {
     if (!API_KEY) return null;
+    
     try {
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`,
@@ -131,19 +249,29 @@ export default function ChefFinokioApp() {
 
   const handleSetMealType = (type) => {
       setMealType(type);
-      setView('mode_selection');
+      setView('mode_selection'); // New flow: go to mode selection instead of home
   };
 
   const generateRecipes = async (preferences = null) => {
     setIsLoading(true);
-    setLoadingText(preferences ? "Chef Finokio sta creando il menu su misura..." : "Sto analizzando gli ingredienti di stagione...");
+    setLoadingText(preferences ? "Chef Finokio sta creando il menu su misura..." : "Chef Finokio sta inventando qualcosa di speciale...");
     
-    // --- FALLBACK PER DEMO SENZA API KEY ---
     if(!API_KEY) {
+        // Fallback for demo without API Key (or simulazione)
         setTimeout(() => {
             setIsLoading(false);
-            alert("API Key mancante. Inseriscila nel codice per generare ricette reali.");
-            setView('home'); 
+            if (!preferences) {
+                // Se no API e no preferences, usa statici o avvisa
+                if(dailyMeals[mealType]?.length > 0) {
+                     setView('home'); // Usa quelli che ci sono
+                } else {
+                     alert("Per usare l'IA reale, inserisci la tua API KEY nel codice.");
+                     setView('home'); 
+                }
+            } else {
+                alert("Per generare ricette personalizzate serve l'API KEY. Ti mostrerò il menu standard.");
+                setView('home');
+            }
         }, 1500);
         return;
     }
@@ -155,114 +283,62 @@ export default function ChefFinokioApp() {
         promptContext = `Scegli tu gli ingredienti in base alla creatività e stagionalità.`;
     }
 
-    const prompt = `Genera 3 ricette per ${mealType}. ${promptContext} JSON array output con struttura: [{id, title, subtitle, description, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}]`;
+    const prompt = `Genera 3 ricette per ${mealType}. ${promptContext} JSON array output con struttura: [{id, title, subtitle, description, category, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}]`;
     
-    // 1. Chiamata API per il testo
     const newMeals = await callGemini(prompt);
     
     if (newMeals && Array.isArray(newMeals)) {
-        // 2. Cambio stato caricamento per Immagini (Richiesta Utente)
-        setLoadingText("Sto generando l'immagine del piatto...");
-        
-        // Piccola pausa artificiale per far leggere il messaggio e simulare l'elaborazione dell'immagine
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        const mealsWithImages = newMeals.map((meal, index) => ({
+        const mealsWithImages = newMeals.map(meal => ({
             ...meal,
-            id: meal.id || `gen_${Date.now()}_${index}`,
-            // Generazione Immagine AI tramite Prompt dinamico
-            image: getAIImage(`${meal.title} ${meal.description}`)
+            image: getRandomImage(meal.category)
         }));
-
         setDailyMeals(prev => ({ ...prev, [mealType]: mealsWithImages }));
         setView('home');
-    } else {
-        alert("Errore nella generazione. Riprova.");
     }
     
     setIsLoading(false);
   };
 
-  const handleGenerateDaily = () => generateRecipes(null); 
+  const handleGenerateDaily = () => generateRecipes(null); // Default random generation
 
   const handleWizardOption = (key, value) => {
       setWizardPreferences(prev => ({ ...prev, [key]: value }));
       if (key === 'base') {
           setWizardStep(1);
       } else if (key === 'style') {
+          // Final step, trigger generation
           const finalPrefs = { ...wizardPreferences, [key]: value };
           generateRecipes(finalPrefs);
       }
   };
 
   const handleGenerateVariant = async () => {
+    if(!API_KEY) { alert("Per usare questa funzione, inserisci la tua API Key Gemini nel codice."); return; }
     setIsLoading(true);
     setLoadingText("Sto elaborando una variante...");
-    
-    if(!API_KEY) { 
-        // Fallback DEMO
-        await new Promise(r => setTimeout(r, 1000));
-        const dummyVariant = { ...selectedMeal, id: selectedMeal.id + "_var", title: "Variante: " + selectedMeal.title, subtitle: "Versione Alternativa" };
-        handleSelectMeal(dummyVariant);
-        setIsLoading(false);
-        return; 
-    }
-
-    const prompt = `Crea una variante della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci un JSON Array con 1 solo oggetto ricetta completo.`;
-    const response = await callGemini(prompt);
-    // Gestione Array vs Oggetto
-    const variant = Array.isArray(response) ? response[0] : response;
-
+    const prompt = `Crea una variante della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci JSON con stessa struttura.`;
+    const variant = await callGemini(prompt);
     if (variant) {
-        setLoadingText("Sto rigenerando l'immagine della variante...");
-        await new Promise(r => setTimeout(r, 1000)); // Delay UX
-        
-        variant.image = getAIImage(variant.title); // Nuova immagine per la variante
+        variant.image = selectedMeal.image;
         variant.title = "Variante: " + (variant.title || selectedMeal.title);
-        variant.id = selectedMeal.id + "_var_" + Date.now();
+        variant.id = selectedMeal.id + "_var";
         handleSelectMeal(variant);
     }
     setIsLoading(false);
   };
 
   const handleRemixIngredients = async () => {
+    if(!API_KEY) { alert("Per usare questa funzione, inserisci la tua API Key Gemini nel codice."); return; }
     setIsLoading(true);
     setLoadingText("Sto remixando gli ingredienti...");
-    
-    // Fallback DEMO se no API Key
-    if(!API_KEY) {
-        await new Promise(r => setTimeout(r, 1500));
-        const dummyRemix = { 
-            ...selectedMeal, 
-            id: "remix_demo", 
-            title: "Remix Sorpresa", 
-            description: "Una nuova versione creata remixando gli ingredienti.",
-            image: getAIImage("Surprise Food Remix")
-        };
-        handleSelectMeal(dummyRemix);
-        setIsLoading(false);
-        return;
-    }
-
     const mainIngredients = selectedMeal.ingredients.map(i => i.name).slice(0, 3).join(", ");
-    // FIX: Richiediamo esplicitamente un ARRAY JSON contenente 1 ricetta per coerenza col parser
-    const prompt = `Crea una ricetta COMPLETAMENTE NUOVA usando questi ingredienti principali: ${mainIngredients}. Restituisci un JSON Array contenente esattamente 1 oggetto ricetta completo con struttura standard.`;
-    
-    const response = await callGemini(prompt);
-    // Fix robustezza: prendi il primo elemento se è array, o l'oggetto se è oggetto
-    const remix = Array.isArray(response) ? response[0] : response;
-
+    const prompt = `Crea una nuova ricetta usando questi ingredienti: ${mainIngredients}. Restituisci JSON con struttura completa.`;
+    const remix = await callGemini(prompt);
     if (remix) {
-        // UX: Messaggio immagine
-        setLoadingText("Sto generando l'immagine del nuovo piatto...");
-        await new Promise(r => setTimeout(r, 1200));
-
-        remix.image = getAIImage(remix.title);
-        remix.title = "Remix: " + (remix.title || "Nuova Creazione");
+        remix.image = getRandomImage(remix.category);
+        remix.title = "Remix: " + (remix.title || "Nuova Ricetta");
         remix.id = "remix_" + Date.now();
         handleSelectMeal(remix);
-    } else {
-        alert("Non sono riuscito a remixare. Riprova!");
     }
     setIsLoading(false);
   };
@@ -323,6 +399,7 @@ export default function ChefFinokioApp() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+          {/* Opzione 1: Automatica */}
           <button 
             onClick={() => generateRecipes(null)}
             className="group relative bg-white border-2 border-purple-100 hover:border-purple-400 hover:bg-purple-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
@@ -337,6 +414,7 @@ export default function ChefFinokioApp() {
               </div>
           </button>
 
+          {/* Opzione 2: Wizard */}
           <button 
             onClick={() => { setWizardStep(0); setView('wizard'); }}
             className="group relative bg-white border-2 border-green-100 hover:border-green-400 hover:bg-green-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
@@ -443,8 +521,8 @@ export default function ChefFinokioApp() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4 pb-12">
             {currentMeals.map((meal) => (
             <div key={meal.id} onClick={() => handleSelectMeal(meal)} className="group bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer transform transition hover:-translate-y-2 hover:shadow-2xl border border-gray-100 flex flex-col h-full">
-                <div className="h-48 overflow-hidden relative bg-gray-200">
-                <img src={meal.image} alt={meal.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" loading="lazy" />
+                <div className="h-48 overflow-hidden relative">
+                <img src={meal.image} alt={meal.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500"/>
                 <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-green-700 shadow-sm flex items-center gap-1"><Clock size={12} /> {meal.time}</div>
                 </div>
                 <div className="p-6 flex flex-col flex-grow">
@@ -475,7 +553,7 @@ export default function ChefFinokioApp() {
 
     return (
     <div className="animate-fade-in max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden my-4 relative">
-      <div className="relative h-72 md:h-96 bg-gray-200">
+      <div className="relative h-72 md:h-96">
         <img src={selectedMeal.image} alt={selectedMeal.title} className="w-full h-full object-cover"/>
         <button onClick={() => setView('home')} className="absolute top-6 left-6 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition text-gray-700 z-10"><ArrowLeft size={24} /></button>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8">
