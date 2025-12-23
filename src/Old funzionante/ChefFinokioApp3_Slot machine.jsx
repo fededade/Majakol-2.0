@@ -1,66 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target, AlertTriangle, MessageCircle, Heart, Lock, Unlock, Coins, Volume2, StopCircle, PlayCircle, Wine, Search } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, Circle, Banknote, Clock, Users, Sun, Moon, CalendarDays, Sparkles, RefreshCw, Shuffle, Loader2, Brain, Lightbulb, Fish, Target, AlertTriangle, MessageCircle, Heart, Lock, Unlock, Coins } from 'lucide-react';
 
 // --- API CONFIGURATION ---
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
-
-
-// --- UTILS: AUDIO CONVERSION ---
-// Convert PCM16 audio data to WAV for browser playback
-const pcmToWav = (pcmData, sampleRate = 24000) => {
-    const buffer = new ArrayBuffer(44 + pcmData.byteLength);
-    const view = new DataView(buffer);
-
-    // RIFF identifier
-    writeString(view, 0, 'RIFF');
-    // file length
-    view.setUint32(4, 36 + pcmData.byteLength, true);
-    // RIFF type
-    writeString(view, 8, 'WAVE');
-    // format chunk identifier
-    writeString(view, 12, 'fmt ');
-    // format chunk length
-    view.setUint32(16, 16, true);
-    // sample format (raw)
-    view.setUint16(20, 1, true);
-    // channel count (mono)
-    view.setUint16(22, 1, true);
-    // sample rate
-    view.setUint32(24, sampleRate, true);
-    // byte rate (sample rate * block align)
-    view.setUint32(28, sampleRate * 2, true);
-    // block align (channel count * bytes per sample)
-    view.setUint16(32, 2, true);
-    // bits per sample
-    view.setUint16(34, 16, true);
-    // data chunk identifier
-    writeString(view, 36, 'data');
-    // data chunk length
-    view.setUint32(40, pcmData.byteLength, true);
-
-    // write the PCM samples
-    const pcmView = new Uint8Array(pcmData);
-    const wavView = new Uint8Array(buffer, 44);
-    wavView.set(pcmView);
-
-    return new Blob([buffer], { type: 'audio/wav' });
-};
-
-const writeString = (view, offset, string) => {
-    for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-    }
-};
-
-const base64ToArrayBuffer = (base64) => {
-    const binaryString = window.atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-};
 
 // --- IMAGE MAPPING (FALLBACK) ---
 const IMAGE_CATEGORIES = {
@@ -265,17 +207,6 @@ export default function ChefFinokioApp() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   
-  // Audio State
-  const [audioUrl, setAudioUrl] = useState(null);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const audioRef = useRef(null);
-  
-  // Sommelier State
-  const [sommelierAdvice, setSommelierAdvice] = useState(null);
-
-  // Fridge State
-  const [fridgeInput, setFridgeInput] = useState('');
-
   // Slot Machine State
   const [heldIngredients, setHeldIngredients] = useState({}); // Indici degli ingredienti bloccati
 
@@ -311,7 +242,9 @@ export default function ChefFinokioApp() {
   // --- API CALLS ---
 
   const callGemini = async (prompt) => {
-    const key = apiKey || ""; 
+    // Usa la chiave fornita se presente, altrimenti stringa vuota (l'ambiente inietterà se disponibile)
+    const key = API_KEY || ""; 
+    
     try {
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`,
@@ -340,62 +273,8 @@ export default function ChefFinokioApp() {
     }
   };
 
-  const callGeminiTTS = async (meal) => {
-      const key = apiKey || "";
-      // PROMPT OTTIMIZZATO: Istruzioni più dirette per ridurre latenza (meno generazione creativa)
-      // e stile vocale "sensuale e deciso" enfatizzato.
-      const prompt = `Sei Majakol. Parla con un tono di voce maschile, profondo, molto caldo, sensuale e deciso. Devi risultare suadente e carismatico.
-      Leggi con calma e intensità la preparazione di: ${meal.title}.
-      
-      Passaggi: ${meal.steps.join(". ")}.
-      
-      Concludi con un brevissimo commento suadente e mistico.`;
-
-      try {
-          const response = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${key}`,
-              {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                      contents: [{ parts: [{ text: prompt }] }],
-                      generationConfig: {
-                          responseModalities: ["AUDIO"],
-                          speechConfig: {
-                              voiceConfig: {
-                                  prebuiltVoiceConfig: {
-                                      // Fenrir è la voce maschile profonda, perfetta per il tono "deciso e sensuale"
-                                      voiceName: "Fenrir" 
-                                  }
-                              }
-                          }
-                      }
-                  })
-              }
-          );
-
-          if (!response.ok) throw new Error("TTS API Error");
-
-          const data = await response.json();
-          const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-          
-          if (!inlineData) throw new Error("No audio data");
-
-          // Convert PCM to WAV
-          const pcmData = base64ToArrayBuffer(inlineData.data);
-          // Assuming 24kHz based on common Gemini TTS output, sometimes it is explicit in mimeType
-          // We can parse mimeType if needed, but 24000 is standard for this model usually.
-          const wavBlob = pcmToWav(pcmData, 24000); 
-          return URL.createObjectURL(wavBlob);
-
-      } catch (error) {
-          console.error("TTS Error:", error);
-          return null;
-      }
-  };
-
   const callImagen = async (prompt) => {
-    const key = apiKey || "";
+    const key = API_KEY || "";
     try {
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${key}`,
@@ -428,9 +307,7 @@ export default function ChefFinokioApp() {
     setLoadingText(preferences ? "Chef Finokio sta creando il menu su misura..." : "Chef Finokio sta inventando qualcosa di speciale...");
     
     let promptContext = "";
-    if (preferences?.type === 'fridge') {
-        promptContext = `L'utente deve consumare questi ingredienti (Svuota Frigo): "${preferences.ingredients}". Crea ricette che utilizzino principalmente questi ingredienti. Puoi aggiungere ingredienti base da dispensa (olio, sale, spezie, pasta, riso).`;
-    } else if (preferences) {
+    if (preferences) {
         promptContext = `L'utente vuole cucinare qualcosa a base di ${preferences.base} con uno stile ${preferences.style}.`;
     } else {
         promptContext = `Scegli tu gli ingredienti in base alla creatività e stagionalità.`;
@@ -447,12 +324,18 @@ export default function ChefFinokioApp() {
         
         for (let i = 0; i < newMeals.length; i++) {
             const meal = newMeals[i];
+            
+            // UI Update: Specificare cosa sta accadendo
             setLoadingText(`Sto immaginando il piatto ${i+1} di ${newMeals.length}: "${meal.title}"...`);
+            
             const imagePrompt = `Professional food photography of ${meal.title}, ${meal.description}. High quality, photorealistic, 4k, delicious, restaurant lighting, top down view.`;
+            
+            // Tentativo di generare l'immagine
             const generatedImage = await callImagen(imagePrompt);
             
             mealsWithImages.push({
                 ...meal,
+                // Se Imagen fallisce, usa Unsplash come fallback
                 image: generatedImage || getRandomImage(meal.category) 
             });
         }
@@ -460,8 +343,15 @@ export default function ChefFinokioApp() {
         setDailyMeals(prev => ({ ...prev, [mealType]: mealsWithImages }));
         setView('home');
     } else {
-        if (!apiKey) console.warn("API Key mancante o errore di rete");
-        else alert("Impossibile contattare l'IA al momento. Riprova più tardi.");
+        // Fallback with specific error for Online/Missing Key
+        if (!API_KEY) {
+            // Niente alert in ambiente di test se fallisce silentemente
+            console.warn("API Key mancante o errore di rete");
+        } else {
+            alert("Impossibile contattare l'IA al momento. Riprova più tardi.");
+        }
+        
+        // Se c'erano già dati, non facciamo nulla e torniamo alla home per non lasciare schermo bianco
         if(dailyMeals[mealType]?.length > 0) setView('home');
     }
     
@@ -469,11 +359,6 @@ export default function ChefFinokioApp() {
   };
 
   const handleGenerateDaily = () => generateRecipes(null); 
-  
-  const handleFridgeSubmit = () => {
-      if (!fridgeInput.trim()) return;
-      generateRecipes({ type: 'fridge', ingredients: fridgeInput });
-  };
 
   const handleWizardOption = (key, value) => {
       setWizardPreferences(prev => ({ ...prev, [key]: value }));
@@ -502,88 +387,17 @@ export default function ChefFinokioApp() {
         variant.title = "Variante: " + (variant.title || selectedMeal.title);
         variant.id = selectedMeal.id + "_var_" + Date.now();
         
-        handleSelectMeal(variant, 'detail'); 
+        handleSelectMeal(variant, 'detail'); // Stay in detail view
     } else {
-        if (!apiKey) console.warn("Manca la API Key");
+        if (!API_KEY) console.warn("Manca la API Key");
         else alert("Errore nella generazione della variante.");
     }
     setIsLoading(false);
   };
-  
-  const handleAskSommelier = async () => {
-      if (!selectedMeal) return;
-      setIsLoading(true);
-      setLoadingText("Majakol sta consultando la cantina...");
-
-      const ingredientsList = selectedMeal.ingredients.map(i => i.name).join(", ");
-      const prompt = `Sei un Sommelier esperto, raffinato e un po' filosofo. 
-      Per il piatto "${selectedMeal.title}" (ingredienti principali: ${ingredientsList}), consiglia l'abbinamento perfetto (Vino Rosso, Bianco, Bollicine, o Birra Artigianale).
-      
-      Restituisci ESCLUSIVAMENTE un JSON con questo formato:
-      {
-        "drink": "Nome del Vino/Bevanda (es. Gewürztraminer Alto Adige DOC)",
-        "description": "Una descrizione breve (max 30 parole) ma molto evocativa e sensoriale del perché questo abbinamento funziona."
-      }`;
-
-      const advice = await callGemini(prompt);
-      if (advice) {
-          setSommelierAdvice(advice);
-      } else {
-          alert("Il Sommelier è in pausa caffè. Riprova dopo.");
-      }
-      setIsLoading(false);
-  };
-
-  const handleGenerateAudio = async () => {
-      if (!selectedMeal) return;
-      if (audioUrl) {
-          // Toggle play/pause if already generated
-          if (audioRef.current) {
-              if (isPlayingAudio) {
-                  audioRef.current.pause();
-              } else {
-                  audioRef.current.play();
-              }
-              setIsPlayingAudio(!isPlayingAudio);
-          }
-          return;
-      }
-
-      setIsLoading(true);
-      setLoadingText("Majakol si sta avvicinando...");
-      
-      const url = await callGeminiTTS(selectedMeal);
-      
-      if (url) {
-          setAudioUrl(url);
-          // Reduced delay to minimize latency
-          setTimeout(() => {
-              if(audioRef.current) {
-                  audioRef.current.play().catch(e => console.error("Auto-play blocked", e));
-                  setIsPlayingAudio(true);
-              }
-          }, 10);
-      } else {
-          alert("Impossibile generare l'audio al momento.");
-      }
-      setIsLoading(false);
-  };
-
-  // Reset audio and sommelier when meal changes or view changes away from detail
-  useEffect(() => {
-      if (audioUrl) {
-          URL.revokeObjectURL(audioUrl);
-          setAudioUrl(null);
-          setIsPlayingAudio(false);
-      }
-      setSommelierAdvice(null);
-  }, [selectedMeal?.id, view]);
-
-  // Handle audio end
-  const handleAudioEnded = () => setIsPlayingAudio(false);
 
   // --- SLOT MACHINE LOGIC ---
   const handleOpenRemixSlot = () => {
+      // Initialize held ingredients to empty (or pre-select some if desired)
       setHeldIngredients({});
       setView('remix_slot');
   };
@@ -591,7 +405,7 @@ export default function ChefFinokioApp() {
   const toggleHoldIngredient = (index) => {
       setHeldIngredients(prev => ({
           ...prev,
-          [index]: !prev[index] 
+          [index]: !prev[index] // Toggle hold state
       }));
   };
 
@@ -608,16 +422,14 @@ export default function ChefFinokioApp() {
 
     const lockedNames = lockedIngredients.map(i => i.name).join(", ");
     
-    // Prompt modificato per creare una variante ex novo basata sugli ingredienti selezionati ma collegata alla ricetta base
-    const prompt = `Partendo dalla ricetta base "${selectedMeal.title}", crea una variante COMPLETAMENTE NUOVA (ex novo).
-    VINCOLO TASSATIVO: Devi utilizzare questi ingredienti selezionati dall'utente: ${lockedNames}.
-    Tutti gli altri ingredienti della ricetta originale che non sono in questa lista DEVONO essere sostituiti o rielaborati per creare un piatto diverso e sorprendente.
-    Restituisci JSON con struttura completa.`;
+    // Prompt specifico per la slot machine
+    const prompt = `Sei una Slot Machine culinaria! Crea una ricetta NUOVA e CREATIVA che deve OBBLIGATORIAMENTE includere questi ingredienti: ${lockedNames}. Inventa tu gli altri ingredienti per completare il piatto. Restituisci JSON con struttura completa.`;
     
     const remix = await callGemini(prompt);
     
     if (remix) {
         setLoadingText(`🎰 VITTORIA! Sto fotografando: ${remix.title}...`);
+        
         const imagePrompt = `Professional food photography of ${remix.title}, ${remix.description}. High quality, photorealistic, 4k, delicious, artistic plating.`;
         const generatedImage = await callImagen(imagePrompt);
 
@@ -627,7 +439,7 @@ export default function ChefFinokioApp() {
         
         handleSelectMeal(remix, 'detail');
     } else {
-        if (!apiKey) console.warn("Manca la API Key");
+        if (!API_KEY) console.warn("Manca la API Key");
         else alert("Errore nel Jackpot.");
     }
     setIsLoading(false);
@@ -664,6 +476,7 @@ export default function ChefFinokioApp() {
     let total = 0; 
     let remaining = 0;
     selectedMeal.ingredients.forEach((ing, index) => {
+      // Robustezza: converti in numero e gestisci valori nulli/stringhe
       const cost = Number(ing.cost) || 0;
       total += cost;
       if (!checkedIngredients[index]) { remaining += cost; }
@@ -782,83 +595,38 @@ export default function ChefFinokioApp() {
           <p className="text-gray-500">Scegli se affidarti totalmente alla creatività di Majakol o dare qualche indicazione.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
           {/* Opzione 1: Automatica */}
           <button 
             onClick={() => generateRecipes(null)}
-            className="group relative bg-white border-2 border-purple-100 hover:border-purple-400 hover:bg-purple-50 p-6 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left flex flex-col h-full"
+            className="group relative bg-white border-2 border-purple-100 hover:border-purple-400 hover:bg-purple-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
           >
-              <div className="absolute top-6 right-6 bg-purple-100 p-3 rounded-full text-purple-600 group-hover:scale-110 transition"><Brain size={24} /></div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 pr-12">Lascia fare a Majakol</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-4 flex-grow">
-                  L'IA analizzerà milioni di combinazioni per proporti ricette sorprendenti.
+              <div className="absolute top-6 right-6 bg-purple-100 p-3 rounded-full text-purple-600 group-hover:scale-110 transition"><Brain size={32} /></div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Lascia fare a Majakol</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                  L'IA analizzerà milioni di combinazioni per proporti 3 ricette equilibrate e sorprendenti. Ideale se non hai idee.
               </p>
-              <div className="mt-auto flex items-center text-purple-600 font-bold text-xs uppercase tracking-wide">
-                  <Sparkles size={14} className="mr-2" /> Automatica
+              <div className="mt-6 flex items-center text-purple-600 font-bold text-sm">
+                  <Sparkles size={16} className="mr-2" /> Generazione Automatica
               </div>
           </button>
 
           {/* Opzione 2: Wizard */}
           <button 
             onClick={() => { setWizardStep(0); setView('wizard'); }}
-            className="group relative bg-white border-2 border-green-100 hover:border-green-400 hover:bg-green-50 p-6 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left flex flex-col h-full"
+            className="group relative bg-white border-2 border-green-100 hover:border-green-400 hover:bg-green-50 p-8 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left"
           >
-              <div className="absolute top-6 right-6 bg-green-100 p-3 rounded-full text-green-600 group-hover:scale-110 transition"><Lightbulb size={24} /></div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 pr-12">Ho qualche idea...</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-4 flex-grow">
-                  Hai del pollo in frigo? O voglia di qualcosa di leggero? Guida lo Chef.
+              <div className="absolute top-6 right-6 bg-green-100 p-3 rounded-full text-green-600 group-hover:scale-110 transition"><Lightbulb size={32} /></div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2 pr-12">Ho qualche idea...</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                  Hai del pollo in frigo? O voglia di qualcosa di leggero? Guida lo Chef verso la ricetta perfetta per te.
               </p>
-              <div className="mt-auto flex items-center text-green-600 font-bold text-xs uppercase tracking-wide">
-                  <Target size={14} className="mr-2" /> Guidata
-              </div>
-          </button>
-
-          {/* Opzione 3: Svuota Frigo (NUOVA) */}
-          <button 
-            onClick={() => setView('fridge_input')}
-            className="group relative bg-white border-2 border-blue-100 hover:border-blue-400 hover:bg-blue-50 p-6 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl text-left flex flex-col h-full"
-          >
-              <div className="absolute top-6 right-6 bg-blue-100 p-3 rounded-full text-blue-600 group-hover:scale-110 transition"><Search size={24} /></div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2 pr-12">Svuota Frigo</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-4 flex-grow">
-                  Inserisci gli ingredienti che devi consumare e l'IA creerà una ricetta su misura.
-              </p>
-              <div className="mt-auto flex items-center text-blue-600 font-bold text-xs uppercase tracking-wide">
-                  <RefreshCw size={14} className="mr-2" /> Zero Sprechi
+              <div className="mt-6 flex items-center text-green-600 font-bold text-sm">
+                  <Target size={16} className="mr-2" /> Configurazione Guidata
               </div>
           </button>
       </div>
     </div>
-  );
-
-  const renderFridgeInput = () => (
-      <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] px-4 max-w-2xl mx-auto">
-          <button onClick={() => setView('mode_selection')} className="self-start mb-8 flex items-center text-gray-400 hover:text-green-600 transition text-sm"><ArrowLeft size={16} className="mr-1" /> Indietro</button>
-          
-          <div className="text-center mb-8">
-              <div className="inline-block bg-blue-100 p-4 rounded-full text-blue-600 mb-4 shadow-sm">
-                  <Search size={40} />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-800 font-serif mb-2">Cosa c'è nel tuo frigo?</h2>
-              <p className="text-gray-500">Scrivi gli ingredienti separati da virgola (es: "uova, zucchine, parmigiano")</p>
-          </div>
-
-          <div className="w-full bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-              <textarea 
-                  value={fridgeInput}
-                  onChange={(e) => setFridgeInput(e.target.value)}
-                  placeholder="Es: 2 uova, mezzo limone, prezzemolo, un po' di riso..."
-                  className="w-full h-32 p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none resize-none text-lg text-gray-700 placeholder-gray-300 transition"
-              />
-              <button 
-                  onClick={handleFridgeSubmit}
-                  disabled={!fridgeInput.trim()}
-                  className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-blue-200 transition transform active:scale-95 flex items-center justify-center gap-2"
-              >
-                  <Sparkles size={20} /> Inventa Ricetta
-              </button>
-          </div>
-      </div>
   );
 
   const renderWizard = () => {
@@ -1055,8 +823,6 @@ export default function ChefFinokioApp() {
 
     return (
     <div className="animate-fade-in max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden my-4 relative">
-      <audio ref={audioRef} src={audioUrl} onEnded={handleAudioEnded} className="hidden" />
-      
       <div className="relative h-72 md:h-96">
         <img src={selectedMeal.image} alt={selectedMeal.title} className="w-full h-full object-cover"/>
         
@@ -1088,46 +854,11 @@ export default function ChefFinokioApp() {
       </div>
       <div className="bg-green-50 px-8 py-4 border-b border-green-100 flex flex-wrap gap-4 items-center justify-between">
             <div className="text-green-800 font-bold flex items-center gap-2"><Sparkles size={18} /> Azioni Chef AI</div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2">
                 <button onClick={handleGenerateVariant} className="bg-white hover:bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm border border-green-200 flex items-center gap-2 transition"><RefreshCw size={16} /> Variante Fit/Gourmet</button>
                 <button onClick={handleOpenRemixSlot} className="bg-white hover:bg-purple-50 text-purple-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm border border-purple-200 flex items-center gap-2 transition"><Shuffle size={16} /> Remix Ingredienti</button>
-                
-                {/* Sommelier Button */}
-                <button 
-                    onClick={handleAskSommelier} 
-                    className="bg-white hover:bg-red-50 text-red-800 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm border border-red-200 flex items-center gap-2 transition"
-                >
-                    <Wine size={16} /> Sommelier
-                </button>
-
-                {/* Audio Button */}
-                <button 
-                    onClick={handleGenerateAudio} 
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold shadow-sm border flex items-center gap-2 transition min-w-[160px] justify-center ${
-                        isPlayingAudio 
-                        ? 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200 animate-pulse' 
-                        : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'
-                    }`}
-                >
-                    {isPlayingAudio ? <StopCircle size={16} /> : (audioUrl ? <PlayCircle size={16} /> : <Volume2 size={16} />)}
-                    {isPlayingAudio ? "Ferma Audio" : (audioUrl ? "Ascolta di nuovo" : "Ascolta Majakol")}
-                </button>
             </div>
       </div>
-      
-      {sommelierAdvice && (
-          <div className="mx-8 mt-6 bg-gradient-to-r from-red-50 to-purple-50 border border-purple-100 rounded-2xl p-6 flex flex-col md:flex-row gap-6 animate-fade-in shadow-inner">
-             <div className="flex-shrink-0 flex items-center justify-center bg-white w-16 h-16 rounded-full shadow-md text-purple-600">
-                 <Wine size={32} />
-             </div>
-             <div>
-                 <h3 className="text-lg font-bold text-purple-900 mb-1">Il Sommelier Consiglia:</h3>
-                 <p className="text-xl font-serif text-gray-800 mb-2 font-bold">{sommelierAdvice.drink}</p>
-                 <p className="text-gray-600 italic">"{sommelierAdvice.description}"</p>
-             </div>
-          </div>
-      )}
-
       <div className="p-8 grid md:grid-cols-2 gap-12">
         <div className="space-y-8">
             <div>
@@ -1253,7 +984,6 @@ export default function ChefFinokioApp() {
       <main className="max-w-6xl mx-auto px-4 pt-8">
         {view === 'welcome' && renderWelcome()}
         {view === 'mode_selection' && renderModeSelection()}
-        {view === 'fridge_input' && renderFridgeInput()}
         {view === 'wizard' && renderWizard()}
         {view === 'home' && renderHome()}
         {view === 'favorites' && renderFavorites()}
