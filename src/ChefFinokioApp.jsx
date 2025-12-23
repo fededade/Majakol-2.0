@@ -333,7 +333,9 @@ export default function ChefFinokioApp() {
         const data = await response.json();
         const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!jsonText) throw new Error("No data from Gemini");
-        return JSON.parse(jsonText);
+        const parsed = JSON.parse(jsonText);
+        if (Array.isArray(parsed)) { return parsed[0] || null; }
+        return parsed;
     } catch (error) {
         console.error("Gemini Catch Error:", error);
         return null;
@@ -489,20 +491,42 @@ export default function ChefFinokioApp() {
     setIsLoading(true);
     setLoadingText("Sto elaborando una variante della ricetta...");
     
-    const prompt = `Crea una variante creativa della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci JSON con stessa struttura.`;
+    const prompt = `Crea una variante creativa della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci JSON con stessa struttura: {id, title, subtitle, description, category, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}`;
     const variant = await callGemini(prompt);
     
-    if (variant) {
-        setLoadingText(`Sto fotografando la variante: ${variant.title}...`);
+    if (variant && typeof variant === 'object') {
+        // Normalizza le proprietà
+        const normalizedVariant = {
+            id: selectedMeal.id + "_var_" + Date.now(),
+            title: "Variante: " + (variant.title || selectedMeal.title),
+            subtitle: variant.subtitle || "Variante creativa",
+            description: variant.description || selectedMeal.description,
+            category: variant.category || selectedMeal.category || "veggie",
+            tags: Array.isArray(variant.tags) ? variant.tags : selectedMeal.tags || [],
+            nutrition: {
+                protein: variant.nutrition?.protein || selectedMeal.nutrition?.protein || "N/A",
+                carbs: variant.nutrition?.carbs || selectedMeal.nutrition?.carbs || "N/A",
+                fiber: variant.nutrition?.fiber || selectedMeal.nutrition?.fiber || "N/A",
+                calories: variant.nutrition?.calories || selectedMeal.nutrition?.calories || "N/A"
+            },
+            time: variant.time || selectedMeal.time || "30 min",
+            servings: variant.servings || selectedMeal.servings || 2,
+            steps: Array.isArray(variant.steps) ? variant.steps : selectedMeal.steps || [],
+            ingredients: Array.isArray(variant.ingredients) ? variant.ingredients.map(ing => ({
+                name: ing.name || "Ingrediente",
+                qty: ing.qty || ing.quantity || "q.b.",
+                cost: Number(ing.cost) || 0
+            })) : selectedMeal.ingredients || []
+        };
+
+        setLoadingText(`Sto fotografando la variante: ${normalizedVariant.title}...`);
         
-        const imagePrompt = `Professional food photography of ${variant.title}, ${variant.description}. High quality, photorealistic, 4k, delicious, vibrant colors.`;
+        const imagePrompt = `Professional food photography of ${normalizedVariant.title}, ${normalizedVariant.description}. High quality, photorealistic, 4k, delicious, vibrant colors.`;
         const generatedImage = await callImagen(imagePrompt);
 
-        variant.image = generatedImage || selectedMeal.image; 
-        variant.title = "Variante: " + (variant.title || selectedMeal.title);
-        variant.id = selectedMeal.id + "_var_" + Date.now();
+        normalizedVariant.image = generatedImage || selectedMeal.image; 
         
-        handleSelectMeal(variant, 'detail'); 
+        handleSelectMeal(normalizedVariant, 'detail'); 
     } else {
         if (!apiKey) console.warn("Manca la API Key");
         else alert("Errore nella generazione della variante.");
@@ -608,24 +632,45 @@ export default function ChefFinokioApp() {
 
     const lockedNames = lockedIngredients.map(i => i.name).join(", ");
     
-    // Prompt modificato per creare una variante ex novo basata sugli ingredienti selezionati ma collegata alla ricetta base
     const prompt = `Partendo dalla ricetta base "${selectedMeal.title}", crea una variante COMPLETAMENTE NUOVA (ex novo).
     VINCOLO TASSATIVO: Devi utilizzare questi ingredienti selezionati dall'utente: ${lockedNames}.
     Tutti gli altri ingredienti della ricetta originale che non sono in questa lista DEVONO essere sostituiti o rielaborati per creare un piatto diverso e sorprendente.
-    Restituisci JSON con struttura completa.`;
+    Restituisci JSON con struttura: {id, title, subtitle, description, category, tags[], nutrition{protein, carbs, fiber, calories}, time, servings, steps[], ingredients[{name, qty, cost}]}`;
     
     const remix = await callGemini(prompt);
     
-    if (remix) {
-        setLoadingText(`🎰 VITTORIA! Sto fotografando: ${remix.title}...`);
-        const imagePrompt = `Professional food photography of ${remix.title}, ${remix.description}. High quality, photorealistic, 4k, delicious, artistic plating.`;
+    if (remix && typeof remix === 'object') {
+        // Normalizza le proprietà
+        const normalizedRemix = {
+            id: "jackpot_" + Date.now(),
+            title: "Jackpot: " + (remix.title || "Nuova Ricetta"),
+            subtitle: remix.subtitle || "Remix creativo",
+            description: remix.description || "Un piatto sorprendente nato dal remix degli ingredienti.",
+            category: remix.category || selectedMeal.category || "veggie",
+            tags: Array.isArray(remix.tags) ? remix.tags : ["Remix", "Creativo"],
+            nutrition: {
+                protein: remix.nutrition?.protein || "N/A",
+                carbs: remix.nutrition?.carbs || "N/A",
+                fiber: remix.nutrition?.fiber || "N/A",
+                calories: remix.nutrition?.calories || "N/A"
+            },
+            time: remix.time || "30 min",
+            servings: remix.servings || 2,
+            steps: Array.isArray(remix.steps) ? remix.steps : ["Prepara gli ingredienti", "Cucina con amore", "Servi caldo"],
+            ingredients: Array.isArray(remix.ingredients) ? remix.ingredients.map(ing => ({
+                name: ing.name || "Ingrediente",
+                qty: ing.qty || ing.quantity || "q.b.",
+                cost: Number(ing.cost) || 0
+            })) : lockedIngredients
+        };
+
+        setLoadingText(`🎰 VITTORIA! Sto fotografando: ${normalizedRemix.title}...`);
+        const imagePrompt = `Professional food photography of ${normalizedRemix.title}, ${normalizedRemix.description}. High quality, photorealistic, 4k, delicious, artistic plating.`;
         const generatedImage = await callImagen(imagePrompt);
 
-        remix.image = generatedImage || getRandomImage(remix.category);
-        remix.title = "Jackpot: " + (remix.title || "Nuova Ricetta");
-        remix.id = "jackpot_" + Date.now();
+        normalizedRemix.image = generatedImage || getRandomImage(normalizedRemix.category);
         
-        handleSelectMeal(remix, 'detail');
+        handleSelectMeal(normalizedRemix, 'detail');
     } else {
         if (!apiKey) console.warn("Manca la API Key");
         else alert("Errore nel Jackpot.");
