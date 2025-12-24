@@ -3,6 +3,7 @@ import { ChefHat, ShoppingCart, ArrowLeft, Leaf, Flame, Utensils, CheckCircle, C
 
 // --- API CONFIGURATION ---
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+const apiKey = API_KEY;
 
 // --- UTILS: AUDIO CONVERSION ---
 // Convert PCM16 audio data to WAV for browser playback
@@ -64,29 +65,29 @@ const base64ToArrayBuffer = (base64) => {
 // --- IMAGE MAPPING (FALLBACK) ---
 const IMAGE_CATEGORIES = {
   fish: [
-    "[https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?auto=format&fit=crop&q=80&w=800)"
+    "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?auto=format&fit=crop&q=80&w=800"
   ],
   meat: [
-    "[https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=800)"
+    "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&q=80&w=800"
   ],
   pasta: [
-    "[https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1551326844-f459e292fd79?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1551326844-f459e292fd79?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&q=80&w=800)"
+    "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1551326844-f459e292fd79?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&q=80&w=800"
   ],
   veggie: [
-    "[https://images.unsplash.com/photo-1476718406336-bb5a9690ee2b?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1476718406336-bb5a9690ee2b?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1520072959219-c595dc3f3dbd?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1520072959219-c595dc3f3dbd?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=800)"
+    "https://images.unsplash.com/photo-1476718406336-bb5a9690ee2b?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1520072959219-c595dc3f3dbd?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&q=80&w=800"
   ],
   salad: [
-    "[https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&q=80&w=800)",
-    "[https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&q=80&w=800](https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&q=80&w=800)"
+    "https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&q=80&w=800"
   ]
 };
 
@@ -336,6 +337,23 @@ export default function ChefFinokioApp() {
         // Clean markdown if present (fixes JSON parsing errors)
         jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
         
+        // Attempt to extract JSON if there's extra text
+        const firstBrace = jsonText.indexOf('{');
+        const lastBrace = jsonText.lastIndexOf('}');
+        const firstBracket = jsonText.indexOf('[');
+        const lastBracket = jsonText.lastIndexOf(']');
+
+        if (firstBrace !== -1 && lastBrace !== -1) {
+             // Prefer object syntax if valid
+             if (firstBracket === -1 || firstBrace < firstBracket) {
+                 jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+             } else if (firstBracket !== -1 && lastBracket !== -1) {
+                 jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+             }
+        } else if (firstBracket !== -1 && lastBracket !== -1) {
+             jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+        }
+        
         return JSON.parse(jsonText);
     } catch (error) {
         console.error("Gemini Catch Error:", error);
@@ -492,7 +510,29 @@ export default function ChefFinokioApp() {
     setIsLoading(true);
     setLoadingText("Sto elaborando una variante della ricetta...");
     
-    const prompt = `Crea una variante creativa della ricetta: ${JSON.stringify(selectedMeal)}. Restituisci JSON con stessa struttura. Assicurati di restituire un SINGOLO oggetto JSON, non un array.`;
+    // Rimuoviamo l'immagine dal payload per evitare errori di lunghezza del prompt
+    const { image, ...mealData } = selectedMeal;
+    
+    const prompt = `Crea una variante creativa della ricetta fornita qui sotto.
+    
+    DATI RICETTA BASE: ${JSON.stringify(mealData)}
+    
+    ISTRUZIONI OUTPUT:
+    Restituisci ESCLUSIVAMENTE un singolo oggetto JSON valido (NON UN ARRAY) con la seguente struttura:
+    {
+      "id": "new_id",
+      "title": "Titolo Variante",
+      "subtitle": "Sottotitolo",
+      "description": "Descrizione",
+      "category": "cat",
+      "tags": ["tag1", "tag2"],
+      "nutrition": { "protein": "...", "carbs": "...", "fiber": "...", "calories": "..." },
+      "time": "...",
+      "servings": 2,
+      "steps": ["step1", "step2"],
+      "ingredients": [ { "name": "...", "qty": "...", "cost": 0 } ]
+    }`;
+
     let variant = await callGemini(prompt);
     
     if (variant) {
@@ -624,7 +664,22 @@ export default function ChefFinokioApp() {
     const prompt = `Partendo dalla ricetta base "${selectedMeal.title}", crea una variante COMPLETAMENTE NUOVA (ex novo).
     VINCOLO TASSATIVO: Devi utilizzare questi ingredienti selezionati dall'utente: ${lockedNames}.
     Tutti gli altri ingredienti della ricetta originale che non sono in questa lista DEVONO essere sostituiti o rielaborati per creare un piatto diverso e sorprendente.
-    Restituisci JSON con struttura completa della singola ricetta (non un array).`;
+    
+    OUTPUT RICHIESTO:
+    Restituisci ESCLUSIVAMENTE un singolo oggetto JSON valido (NON UN ARRAY) con la seguente struttura:
+    {
+      "id": "jackpot_id",
+      "title": "Titolo Variante",
+      "subtitle": "Sottotitolo",
+      "description": "Descrizione",
+      "category": "cat",
+      "tags": ["tag1", "tag2"],
+      "nutrition": { "protein": "...", "carbs": "...", "fiber": "...", "calories": "..." },
+      "time": "...",
+      "servings": 2,
+      "steps": ["step1", "step2"],
+      "ingredients": [ { "name": "...", "qty": "...", "cost": 0 } ]
+    }`;
     
     let remix = await callGemini(prompt);
     
